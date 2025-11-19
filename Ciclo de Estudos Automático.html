@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ciclo de Estudos Automático e Rígido</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Configuração de Estética (Dark Mode Otimizado) */
+        :root {
+            --color-primary: #BB86FC;
+            --color-secondary: #03DAC6;
+            --color-background: #121212;
+            --color-surface: #1E1E1E;
+            --color-text: #E0E0E0;
+            --color-accent: #FFD700;
+            --color-meta: #79c0ff;
+            --color-log: #FF5722;
+            --color-danger: #cf6679; /* Cor para Retrocesso/Alerta */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+        }
+        .container {
+            width: 95%;
+            max-width: 800px;
+            background-color: #161b22;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        .step-done {
+            background-color: #2a3a3a;
+            opacity: 0.5;
+            border-left: 5px solid #005f5f;
+        }
+        .step-current {
+            background-color: #2d2d2d;
+            border: 2px solid var(--color-secondary);
+            transform: scale(1.02);
+            box-shadow: 0 4px 10px rgba(3, 218, 198, 0.3);
+        }
+        .step-current .step-icon {
+            color: var(--color-secondary);
+            background-color: #03dac633;
+        }
+        .step-future {
+            background-color: var(--color-surface);
+            border-left: 5px solid #333333;
+        }
+        .step-icon {
+            min-width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            margin-right: 1rem;
+            font-weight: bold;
+        }
+        
+        /* Cores específicas para as ações */
+        .color-meta { color: var(--color-meta); }
+        .bg-meta { background-color: #79c0ff20; }
+        .color-study { color: var(--color-secondary); }
+        .bg-study { background-color: #03dac620; }
+        .color-log { color: var(--color-log); }
+        .bg-log { background-color: #ff572220; }
+        .color-rest { color: var(--color-accent); }
+        .bg-rest { background-color: #ffd70020; }
+
+        /* Estilos do Toast (Notificação Flutuante) */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            font-size: 17px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        #toast.show {
+            visibility: visible;
+            -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+        @-webkit-keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+        @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+        @-webkit-keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+        @keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="container mx-auto shadow-2xl rounded-xl p-6 md:p-10">
+        
+        <h1 class="text-3xl font-extrabold pb-3 mb-6 text-center" style="color:var(--color-primary); border-bottom: 2px solid var(--color-primary)">
+            FLUXO OPERACIONAL EM CICLO AUTOMÁTICO
+        </h1>
+        <p id="plan-status" class="text-xs text-center mb-4 text-gray-500">Aguardando inicialização...</p>
+
+        <!-- Seção de Estado Atual -->
+        <div class="bg-gray-800 p-6 rounded-lg mb-8">
+            <h2 class="text-xl font-bold mb-2" style="color: var(--color-meta)">ESTADO ATUAL DO SISTEMA:</h2>
+            <p class="text-lg text-gray-400">Disciplina Atual (A):</p>
+            <div id="current-discipline" class="text-4xl font-extrabold p-2 mb-4 rounded-lg text-center" style="color:var(--color-secondary); border: 2px solid var(--color-secondary)">
+                ...
+            </div>
+            <p class="text-lg text-gray-400">Próxima Disciplina (B) - Após Descanso Pivot:</p>
+            <div id="next-discipline" class="text-xl font-semibold p-2 rounded-lg text-center bg-gray-700" style="color:var(--color-text);">
+                ...
+            </div>
+        </div>
+
+        <!-- Matriz de Funções Automática (Checklist) -->
+        <h2 class="text-xl font-bold mb-4" style="color: var(--color-primary)">MATRIZ DE FUNÇÕES: CHECKLIST (Ciclo Rígido)</h2>
+        <div id="cycle-checklist" class="space-y-2 mb-6">
+            <!-- A Matriz será injetada aqui -->
+        </div>
+        
+        <!-- Botões de Ação -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+            <button id="undo-button" onclick="window.undoStep()" class="w-full sm:w-auto p-3 text-sm font-semibold rounded-lg uppercase transition-colors" style="background-color: var(--color-danger); color: white;">
+                « RETROCEDER (UNDO)
+            </button>
+            <button id="advance-button" onclick="window.advanceStep()" class="w-full sm:w-2/3 p-4 text-gray-900 font-extrabold rounded-lg uppercase" style="background-color:var(--color-primary);">
+                [AÇÃO] CONCLUIR PASSO ATUAL E AVANÇAR
+            </button>
+        </div>
+        
+    </div>
+
+    <!-- Notificação Flutuante (Toast) -->
+    <div id="toast"></div>
+
+    <!-- Firebase Imports e Lógica do Programa (TUDO EM UM MÓDULO) -->
+    <script type="module">
+        // --- Imports Firebase ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- 0. VARIÁVEIS DE ESTADO E CONSTANTES ---
+
+        const STORAGE_KEY = 'automaticStudyCycleState'; 
+        
+        let db, auth, app;
+        let userId = null;
+        let isAuthReady = false;
+        let currentDisciplineIndex = 0; 
+        let currentStepIndex = 0; 
+        let usingLocalStorage = false;
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        const SUBJECTS = [
+            'RLM',
+            'Constitucional',
+            'Administrativo',
+            'Tributário 1',
+            'Legislação Tributária Estadual',
+            'Português'
+        ];
+
+        const STUDY_STEPS = [
+            // BLOCKS: DISCIPLINA ATUAL (A)
+            { id: 'meta_1', name: 'META-OTIMIZAÇÃO 1: Foco Inicial (Regra do Stop-Loss)', duration: 5, type: 'meta', icon: '🧠', description: 'Foco no estado mental. Interrompa se o desvio padrão do tempo de reação ($\sigma$) estiver alto.' },
+            { id: 'ativacao', name: 'ATIVAÇÃO: Treinamento TDP', duration: 15, type: 'study', icon: '⚡', description: 'Treino de velocidade de processamento para maximizar a entrada de dados (Isocronia).' },
+            { id: 'anki_1', name: 'RECUPERAÇÃO: Anki Sessão 1 (Warm-up)', duration: 30, type: 'study', icon: '🔥', description: 'Revisão ativa de cards antigos para aquecimento cognitivo e lembrança ativa.' },
+            { id: 'foco_a', name: 'FOCO (A): Resumos (Notebook LM)', duration: 90, type: 'study', icon: '📖', description: 'Estudo do conteúdo. Elaboração dos resumos (seu Notebook LM).' },
+            { id: 'log_a', name: 'LOG (A): Atualizar Excel/Sistema', duration: 5, type: 'log', icon: '📊', description: 'Registro da métrica (tempo, $\sigma$ percebido, conteúdo) no Excel/Sistema.' },
+            
+            // PIVOT: DESCANSO E TRANSIÇÃO
+            { id: 'pivot', name: 'DESCANSO PIVOT (15 min): Protocolo 4-7-8 (Reset Cognitivo)', duration: 15, type: 'rest', icon: '🧘', description: 'Obrigatório. Use o Protocolo de Respiração 4-7-8 para o Reset Cognitivo completo.' },
+            
+            // BLOCKS: PRÓXIMA DISCIPLINA (B)
+            { id: 'foco_b', name: 'FOCO (B): Início do Próximo Assunto', duration: 90, type: 'study', icon: '📝', description: 'Início do estudo da Próxima Disciplina. Foco na absorção do novo material.' },
+            { id: 'cards_b', name: 'FOCO (B): Criação de Cartões (Gemini)', duration: 45, type: 'study', icon: '✨', description: 'Criação dos cartões de Anki diretamente no Gemini.' },
+            { id: 'log_b', name: 'LOG (B): Atualizar Excel/Sistema', duration: 5, type: 'log', icon: '📊', description: 'Registro da métrica (tempo, $\sigma$ percebido, conteúdo) da segunda disciplina.' },
+            { id: 'conso', name: 'CONSOLIDAÇÃO: Exportar Cards p/ Anki + Anki Sessão 2', duration: 30, type: 'study', icon: '✅', description: 'Exportação de cartões (Gemini -> Anki) e Revisão final de todos os cards do dia.' },
+            
+            // NOVO PASSO: RESOLUÇÃO DE QUESTÕES
+            { id: 'questoes', name: 'APLICAÇÃO: 10 Questões do Tópico (Recuperação Ativa)', duration: 30, type: 'study', icon: '📝', description: 'Resolver 10 questões do tópico (B) para forçar a recuperação ativa e identificar lacunas.' },
+
+            { id: 'meta_2', name: 'META-OTIMIZAÇÃO 2: Revisão Métrica Final (Fechamento)', duration: 5, type: 'meta', icon: '🎯', description: 'Avaliação final do ciclo e preparação para o próximo início.' },
+        ];
+
+
+        // --- FUNÇÃO AUXILIAR DE FEEDBACK ---
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            // CORREÇÃO: Variáveis CSS devem ser passadas como string (ex: 'var(--nome-da-variavel)')
+            toast.style.backgroundColor = isError ? 'var(--color-danger)' : '#333';
+            toast.className = "show";
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        // --- 1. FUNÇÕES DE ARMAZENAMENTO (FIREBASE & FALLBACK) ---
+
+        const COLLECTION_NAME = 'automatic_study_cycle';
+        const DOC_ID = 'state'; 
+
+        function getCycleDocRef() {
+            if (!userId || !db) return null;
+            return doc(db, `artifacts/${appId}/users/${userId}/${COLLECTION_NAME}/${DOC_ID}`);
+        }
+
+        async function updateCycleState(newDiscIndex, newStepIndex) {
+            currentDisciplineIndex = newDiscIndex;
+            currentStepIndex = newStepIndex;
+
+            if (usingLocalStorage) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ 
+                    disciplineIndex: newDiscIndex, 
+                    stepIndex: newStepIndex 
+                }));
+                renderCycle();
+                return;
+            }
+
+            const docRef = getCycleDocRef();
+            if (!docRef) return;
+
+            try {
+                await setDoc(docRef, { 
+                    disciplineIndex: newDiscIndex, 
+                    stepIndex: newStepIndex,
+                    lastUpdate: new Date() 
+                });
+            } catch (error) {
+                console.error("Erro ao salvar o estado no Firestore:", error);
+                showToast("Erro ao salvar. Verifique a conexão.", true);
+                renderCycle();
+            }
+        }
+
+        function loadCycleState() {
+            if (usingLocalStorage) {
+                const storedState = localStorage.getItem(STORAGE_KEY);
+                if (storedState) {
+                    const data = JSON.parse(storedState);
+                    currentDisciplineIndex = data.disciplineIndex || 0;
+                    currentStepIndex = data.stepIndex || 0;
+                }
+                renderCycle();
+                document.getElementById('plan-status').textContent = `OFFLINE: Usando Armazenamento Local.`;
+                return;
+            }
+
+            const docRef = getCycleDocRef();
+            if (!docRef) return;
+
+            onSnapshot(docRef, (docSnap) => {
+                let discIndex = 0;
+                let stepIndex = 0;
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    discIndex = data.disciplineIndex || 0;
+                    stepIndex = data.stepIndex || 0;
+                }
+                currentDisciplineIndex = discIndex;
+                currentStepIndex = stepIndex;
+                renderCycle(); 
+                document.getElementById('plan-status').textContent = `ONLINE: Conectado ao Firestore. Usuário ID: ${userId.substring(0, 8)}...`;
+            }, (error) => {
+                console.error("Erro ao carregar o estado do ciclo via onSnapshot:", error);
+                document.getElementById('plan-status').textContent = 'ONLINE (Falha ao carregar estado).';
+                renderCycle();
+            });
+        }
+        
+        async function initFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+                        loadCycleState();
+                    } else {
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (e) {
+                            console.warn("Autenticação Firebase falhou. Usando Fallback Local.", e.message);
+                            usingLocalStorage = true;
+                            isAuthReady = true;
+                            loadCycleState();
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Erro fatal na inicialização do Firebase. Usando Fallback Local.", error);
+                usingLocalStorage = true;
+                isAuthReady = true;
+                loadCycleState();
+            }
+        }
+        
+        // --- 2. FUNÇÕES DE LÓGICA DO CICLO ---
+
+        function renderCycle() {
+            if (!isAuthReady) {
+                document.getElementById('current-discipline').textContent = 'Inicializando...';
+                return;
+            }
+
+            const currentDisc = SUBJECTS[currentDisciplineIndex];
+            const nextDiscIndex = (currentDisciplineIndex + 1) % SUBJECTS.length;
+            const nextDisc = SUBJECTS[nextDiscIndex];
+            
+            document.getElementById('current-discipline').textContent = currentDisc;
+            document.getElementById('next-discipline').textContent = nextDisc;
+
+            const checklistOutput = document.getElementById('cycle-checklist');
+            let html = '';
+
+            STUDY_STEPS.forEach((step, index) => {
+                let statusClass = 'step-future';
+                let statusText = 'A FAZER';
+                
+                if (index < currentStepIndex) {
+                    statusClass = 'step-done';
+                    statusText = 'CONCLUÍDO';
+                } else if (index === currentStepIndex) {
+                    statusClass = 'step-current';
+                    statusText = 'AGORA';
+                }
+
+                let stepName = step.name;
+                // Substitui (A) pela disciplina atual
+                if (step.id.includes('_a') || step.id === 'foco_a' || step.id === 'log_a') {
+                    stepName = step.name.replace('(A)', `(A - ${currentDisc})`);
+                } 
+                // Substitui (B) pela próxima disciplina
+                else if (step.id.includes('_b') || step.id === 'foco_b' || step.id === 'cards_b' || step.id === 'log_b') {
+                    stepName = step.name.replace('(B)', `(B - ${nextDisc})`);
+                }
+
+                html += `
+                    <div class="step-item ${statusClass}">
+                        <div class="step-icon color-${step.type} bg-${step.type}">${step.icon}</div>
+                        <div class="flex-grow">
+                            <p class="font-bold text-base ${index === currentStepIndex ? 'text-white' : 'text-gray-400'}">${stepName} <span class="text-xs text-gray-500">(${step.duration} min)</span></p>
+                            <p class="text-xs text-gray-500">${step.description}</p>
+                        </div>
+                        <span class="text-sm font-semibold ml-4 ${index === currentStepIndex ? 'color-secondary' : 'text-gray-600'}">${statusText}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('advance-button').textContent = `[AÇÃO] CONCLUIR PASSO ATUAL: ${STUDY_STEPS[currentStepIndex].name}`;
+            checklistOutput.innerHTML = html;
+        }
+
+        /**
+         * FUNÇÃO DE AVANÇO DE PASSO
+         */
+        window.advanceStep = function() {
+            if (!isAuthReady) {
+                showToast("Aguarde a inicialização do sistema.", true);
+                return;
+            }
+
+            let newDiscIndex = currentDisciplineIndex;
+            let newStepIndex = currentStepIndex;
+
+            if (currentStepIndex === STUDY_STEPS.length - 1) {
+                // Fim do ciclo de funções. Avança para a próxima disciplina.
+                newDiscIndex = (currentDisciplineIndex + 1) % SUBJECTS.length;
+                newStepIndex = 0; // Reinicia os passos
+
+                const completedDisc = SUBJECTS[currentDisciplineIndex];
+                const nextDisc = SUBJECTS[newDiscIndex];
+                
+                showToast(`🎉 CICLO CONCLUÍDO! Avançando: ${completedDisc} -> ${nextDisc}.`, false);
+                
+            } else {
+                // Avança para o próximo passo de estudo/função
+                newStepIndex = currentStepIndex + 1;
+                showToast(`Passo ${newStepIndex + 1} de ${STUDY_STEPS.length} CONCLUÍDO.`, false);
+            }
+            
+            updateCycleState(newDiscIndex, newStepIndex);
+        }
+        
+        /**
+         * FUNÇÃO DE RETROCESSO (UNDO)
+         */
+        window.undoStep = function() {
+            if (!isAuthReady) {
+                showToast("Aguarde a inicialização do sistema.", true);
+                return;
+            }
+
+            let newDiscIndex = currentDisciplineIndex;
+            let newStepIndex = currentStepIndex;
+
+            if (currentStepIndex === 0) {
+                // Se estiver no primeiro passo (0), retrocede para o ÚLTIMO passo da disciplina ANTERIOR
+                if (currentDisciplineIndex === 0) {
+                    // Volta para o final da última disciplina do array
+                    newDiscIndex = SUBJECTS.length - 1;
+                } else {
+                    // Volta para a disciplina anterior
+                    newDiscIndex = currentDisciplineIndex - 1;
+                }
+                newStepIndex = STUDY_STEPS.length - 1; // Último passo da disciplina anterior
+                
+                const prevDisc = SUBJECTS[newDiscIndex];
+                showToast(`« UNDO COMPLETO: Retornou para o fim de ${prevDisc}.`, true);
+                
+            } else {
+                // Retrocede um passo dentro da disciplina atual
+                newStepIndex = currentStepIndex - 1;
+                showToast(`« UNDO: Retornou ao passo ${newStepIndex + 1} de ${STUDY_STEPS.length}.`, true);
+            }
+            
+            updateCycleState(newDiscIndex, newStepIndex);
+        }
+
+        // --- 3. INICIALIZAÇÃO ---
+        initFirebase(); 
+
+    </script>
+</body>
+</html>

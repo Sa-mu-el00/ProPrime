@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotina Rígida - Fluxo Diário ADAPTATIVO V2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="./utils.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Configuração de Estética (Dark Mode Otimizado - Baseado no Modelo) */
+        :root {
+            --color-primary: #BB86FC; /* Principal - Ações */
+            --color-secondary: #03DAC6; /* Estudo/Foco */
+            --color-background: #121212;
+            --color-surface: #1E1E1E;
+            --color-text: #E0E0E0;
+            --color-accent: #FFD700; /* Descanso */
+            --color-meta: #79c0ff; /* Lógica/Metacognição */
+            --color-log: #FF5722; /* Fim de Ciclo/Saída */
+            --color-danger: #cf6679; /* Retrocesso */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+        }
+        .container {
+            width: 95%;
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: var(--color-surface);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(187, 134, 252, 0.1);
+        }
+        .step-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .step-number {
+            font-weight: bold;
+            color: var(--color-primary);
+            margin-right: 15px;
+            min-width: 25px;
+        }
+        .step-name {
+            flex-grow: 1;
+        }
+        .current {
+            background-color: #333;
+            border-left: 5px solid var(--color-secondary);
+        }
+        .completed {
+            opacity: 0.5;
+            background-color: #0A0A0A;
+            border-left: 5px solid var(--color-primary);
+        }
+        .action-button {
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: 700;
+            transition: background-color 0.2s;
+        }
+        .main-button { background-color: var(--color-secondary); color: var(--color-background); }
+        .main-button:hover { background-color: #00A693; }
+        .undo-button { background-color: var(--color-danger); color: var(--color-text); }
+        .undo-button:hover { background-color: #A05263; }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="NEXUS.html" class="bg-gray-700 text-white px-3 py-1 rounded-md text-sm mb-4 inline-flex items-center hover:bg-gray-600 transition-colors">
+            <span data-lucide="arrow-left" class="w-4 h-4 mr-2"></span>
+            Voltar ao Nexus
+        </a>
+        
+        <h1 class="text-3xl font-bold mb-6 text-center text-white">FLUXO DIÁRIO ADAPTATIVO</h1>
+        <p id="critical-info" class="text-sm mb-4 text-center text-red-400"></p>
+
+        <div id="cycle-display">
+            </div>
+
+        <div class="flex justify-between mt-8">
+            <button onclick="undoStep()" class="action-button undo-button flex items-center">
+                <span data-lucide="rotate-ccw" class="w-5 h-5 mr-2"></span>
+                VOLTAR (UNDO)
+            </button>
+            <button id="advance-button" onclick="advanceStep()" class="action-button main-button flex items-center">
+                <span data-lucide="check-circle" class="w-5 h-5 mr-2"></span>
+                AVANÇAR PASSO
+            </button>
+        </div>
+    </div>
+    
+    <div id="custom-toast"></div>
+
+    <script type="module">
+        import { saveLocalData, loadLocalData, showToast, getCriticalCategory } from './utils.js';
+        
+        const DEFAULT_ROUTINE = [
+            { id: 1, name: 'Despertar (Preparo Cognitivo)', link: '', icon: 'sunrise' },
+            { id: 2, name: 'Protocolo Matinal (Leitura/Notícias)', link: '', icon: 'rss' },
+            { id: 3, name: 'Reflexão Diária', link: 'Reflexão Diária.html', icon: 'message-square-text' },
+            { id: 4, name: 'Sessão Anki 1', link: 'anki.html', icon: 'layout-grid' },
+            { id: 5, name: 'Estudo Sessão 1 (Foco Máximo)', link: 'Ciclo de Estudos Automático.html', icon: 'book-open-text' },
+            { id: 6, name: 'Pausa Almoço/Descanso', link: 'Descanso.html', icon: 'coffee' },
+            { id: 7, name: 'Estudo Sessão 2 (Proficiência)', link: 'Ciclo de estudos automática de inglês.html?disc=Inglês', icon: 'globe' },
+            { id: 8, name: 'Análise de Fadiga (TDP)', link: 'Fadiga 3.html', icon: 'eye' },
+            { id: 9, name: 'Estudo Sessão 3 (Revisão)', link: 'Ciclo de Estudos Automático.html', icon: 'bookmark' },
+            { id: 10, name: 'Rotina Noturna (Reconexão)', link: '', icon: 'sunset' },
+            { id: 11, name: 'Dormir', link: '', icon: 'moon' },
+        ];
+        
+        let DAILY_ROUTINE = [];
+        let currentStepIndex = 0;
+        const cycleDisplay = document.getElementById('cycle-display');
+
+        // --- 1. FUNÇÃO DE ADAPTAÇÃO DO FLUXO (O CORE DO REQUISITO) ---
+        function generateAdaptiveRoutine() {
+            const criticalCategory = getCriticalCategory();
+            const routine = [...DEFAULT_ROUTINE];
+
+            document.getElementById('critical-info').innerHTML = `**CALIBRAÇÃO ATIVA:** Categoria Crítica da Última Reflexão: <span class="font-bold">${criticalCategory.toUpperCase()}</span>. Rotina adaptada.`;
+
+            // Gateway 1: Protocolo de Vigilância Injetado (Foco ou Tédio)
+            if (criticalCategory === 'Foco') {
+                // Injeta antes da Sessão Anki
+                routine.splice(3, 0, { 
+                    id: 301, 
+                    name: 'GATEWAY: VIGILÂNCIA SUSTENTADA', 
+                    link: 'Memória numérica.html', 
+                    icon: 'brain-circuit',
+                    isDynamic: true
+                }); 
+            } else if (criticalCategory === 'Fadiga') {
+                 // Gateway 2: Protocolo Parassimpático Injetado (Descanso)
+                // Injeta logo após o despertar, antes do estudo principal.
+                routine.splice(1, 0, { 
+                    id: 101, 
+                    name: 'GATEWAY: PROTOCOLO PARASSIMPÁTICO', 
+                    link: 'Descanso.html', 
+                    icon: 'relax',
+                    isDynamic: true
+                }); 
+            }
+            
+            // Re-indexa os IDs após a injeção (apenas para exibição)
+            return routine.map((step, index) => ({
+                ...step,
+                id: index + 1 // Novos IDs sequenciais
+            }));
+        }
+        
+        // --- 2. GESTÃO DE ESTADO (LOCAL STORAGE) ---
+        function saveCycleState() {
+            saveLocalData('dailyFlowState', { index: currentStepIndex, date: new Date().toISOString().split('T')[0] });
+        }
+
+        function loadCycleState() {
+            const savedState = loadLocalData('dailyFlowState', { index: 0, date: new Date().toISOString().split('T')[0] });
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Se for um novo dia, reseta o ciclo.
+            if (savedState.date !== today) {
+                currentStepIndex = 0;
+                showToast("Novo dia, novo ciclo. Rotina recalculada.", false);
+            } else {
+                currentStepIndex = savedState.index;
+            }
+        }
+
+        // --- 3. RENDERIZAÇÃO ---
+        function renderCycle() {
+            cycleDisplay.innerHTML = '';
+            
+            DAILY_ROUTINE.forEach((step, index) => {
+                const isCurrent = index === currentStepIndex;
+                const isCompleted = index < currentStepIndex;
+                
+                const stepEl = document.createElement('div');
+                stepEl.className = `step-item ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`;
+                
+                let html = `<span class="step-number">${index + 1}.</span>`;
+                html += `<span class="step-name">${step.name}</span>`;
+                
+                if (step.link) {
+                    html += `<a href="${step.link}" class="text-sm font-semibold ml-4 px-3 py-1 rounded-md ${isCurrent ? 'bg-primary text-background' : 'bg-gray-700 text-white'}" target="_self">
+                                <span data-lucide="${step.icon}" class="w-4 h-4 mr-1 inline-block align-middle"></span>
+                                INICIAR
+                            </a>`;
+                }
+
+                stepEl.innerHTML = html;
+                cycleDisplay.appendChild(stepEl);
+            });
+            
+            // Re-renderiza os ícones Lucide
+            lucide.createIcons();
+            saveCycleState(); // Salva o estado após renderizar
+        }
+
+        // --- 4. FUNÇÕES DE FLUXO ---
+        window.advanceStep = function() {
+            if (currentStepIndex < DAILY_ROUTINE.length - 1) {
+                currentStepIndex++;
+                showToast(`Passo ${currentStepIndex + 1} de ${DAILY_ROUTINE.length} ATIVADO.`, false);
+                renderCycle();
+            } else {
+                showToast("🎉 Fim do ciclo diário. Indo para o Passo: Dormir.", false);
+                // Permanece no último passo (Dormir)
+                renderCycle(); 
+            }
+        }
+
+        /**
+         * FUNÇÃO DE RETROCESSO (UNDO) (REQUISITO CUMPRIDO)
+         */
+        window.undoStep = function() {
+            if (currentStepIndex > 0) {
+                currentStepIndex--;
+                showToast(`« UNDO: Retornou ao passo ${currentStepIndex + 1}.`, true);
+                renderCycle();
+            } else {
+                showToast("Já está no primeiro passo (1. Despertar).", true);
+            }
+        }
+
+        // --- 5. INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            DAILY_ROUTINE = generateAdaptiveRoutine();
+            loadCycleState();
+            renderCycle();
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PriorityFlow: Gestão de Tarefas e Agenda Inteligente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Configuração de Fonte Global e Estilização de Scrollbar */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Fundo Escuro Profundo (Tecnológico) */
+            background-color: #030712; 
+        }
+        /* Estilos para a Linha do Tempo (Timeline) */
+        .timeline-item {
+            position: relative;
+            padding-left: 1.5rem; 
+            /* Linha da timeline cinza escuro para contraste */
+            border-left: 2px solid #374151;
+            cursor: pointer; 
+            transition: background-color 0.15s;
+        }
+        .timeline-item:hover {
+            /* Destaque sutil ao passar o mouse */
+            background-color: #1f2937;
+        }
+        .timeline-item:last-child {
+            border-left: none; 
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -8px; 
+            top: 0;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            /* Ponto principal: Ciano Elétrico */
+            background-color: #38bdf8; 
+            border: 2px solid #030712; /* Borda da cor do fundo */
+            z-index: 10;
+        }
+        /* Ícone de Ponto para Eventos Repetitivos (Verde/Emerald) */
+        .dot-repeat::before {
+            background-color: #10b981; 
+        }
+        /* Estilos de Card de Tarefa (Prioridade) */
+        .task-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer; 
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+        }
+        /* Cores de Prioridade (Fundo Escuro Suave com Borda Vibrante) */
+        /* Prioridade 1 (Alta) - Rosa/Alerta (Dark Red) */
+        .priority-1 { background-color: #450a0a; border-left-color: #f43f5e; } 
+        /* Prioridade 2 (Média-Alta) - Amarelo/Warning (Dark Amber) */
+        .priority-2 { background-color: #412e02; border-left-color: #fbbf24; } 
+        /* Prioridade 3 (Média) - Ciano/Principal (Dark Cyan) */
+        .priority-3 { background-color: #082f49; border-left-color: #38bdf8; } 
+        /* Prioridade 4 (Baixa) - Esmeralda/Sucesso (Dark Emerald) */
+        .priority-4 { background-color: #064e3b; border-left-color: #10b981; } 
+
+        /* Estilos para o Modal (Janela de Detalhes) */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8); 
+            backdrop-filter: blur(8px); /* Blur mais intenso */
+        }
+        .modal-content {
+            /* Fundo escuro do modal */
+            background-color: #1f2937; 
+            margin: 10% auto; 
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 25px rgba(0,255,255,0.1); /* Sombra neon sutil */
+            animation: slidein 0.3s ease-out;
+            border: 1px solid #374151;
+        }
+
+        @keyframes slidein {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close-btn {
+            color: #9ca3af; /* Cinza claro */
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            transition: color 0.15s;
+        }
+        .close-btn:hover,
+        .close-btn:focus {
+            color: #38bdf8; /* Cor de destaque ao hover */
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+
+    <div class="container mx-auto max-w-6xl">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-white tracking-tight">PriorityFlow</h1>
+            <p class="text-gray-400 mt-2">Gestão de Fluxo e Foco Baseada em Dados</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="lg:col-span-2 space-y-8">
+                
+                <section class="bg-gray-900 p-6 rounded-xl shadow-2xl border border-gray-700">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-100 flex items-center">
+                        <i data-lucide="zap" class="w-6 h-6 mr-2 text-cyan-400"></i> Captura Rápida
+                    </h2>
+                    
+                    <div class="mb-4">
+                        <input type="text" id="task-name" placeholder="O que você precisa fazer?" 
+                               /* Cores do Input no Dark Mode */
+                               class="w-full px-4 py-3 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring-cyan-400 focus:border-cyan-400 transition duration-150"
+                               maxlength="80">
+                    </div>
+
+                    <div id="quick-settings" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 transition-all duration-300">
+                        <div>
+                            <label for="event-date" class="block text-sm font-medium text-gray-400 mb-1">Data/Início</label>
+                            <input type="date" id="event-date" class="w-full px-3 py-2 border border-gray-600 bg-gray-800 text-white rounded-lg">
+                        </div>
+                        <div>
+                            <label for="duration" class="block text-sm font-medium text-gray-400 mb-1">Duração (min)</label>
+                            <input type="number" id="duration" placeholder="30" min="5" value="30" class="w-full px-3 py-2 border border-gray-600 bg-gray-800 text-white rounded-lg">
+                        </div>
+                        <div>
+                            <label for="day" class="block text-sm font-medium text-gray-400 mb-1">Repetição (Dias)</label>
+                            <select id="day" class="w-full px-3 py-2 border border-gray-600 bg-gray-800 text-white rounded-lg">
+                                <option value="" class="bg-gray-800">Não Repetir</option>
+                                <option value="Mon" class="bg-gray-800">Segunda</option>
+                                <option value="Tue" class="bg-gray-800">Terça</option>
+                                <option value="Wed" class="bg-gray-800">Quarta</option>
+                                <option value="Thu" class="bg-gray-800">Quinta</option>
+                                <option value="Fri" class="bg-gray-800">Sexta</option>
+                                <option value="Sat" class="bg-gray-800">Sábado</option>
+                                <option value="Sun" class="bg-gray-800">Domingo</option>
+                                <option value="daily" class="bg-gray-800">Diariamente</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2 md:col-span-1">
+                            <label for="observation" class="block text-sm font-medium text-gray-400 mb-1">Observação</label>
+                            <input type="text" id="observation" placeholder="Detalhes (opcional)" class="w-full px-3 py-2 border border-gray-600 bg-gray-800 text-white rounded-lg">
+                        </div>
+                    </div>
+
+                    <button onclick="addTask()" class="w-full bg-cyan-500 text-gray-900 font-extrabold py-3 rounded-lg shadow-lg hover:bg-cyan-400 transition duration-150 flex items-center justify-center">
+                        <i data-lucide="plus-circle" class="w-5 h-5 mr-2"></i> Adicionar Tarefa & Priorizar
+                    </button>
+                    <p id="error-message" class="text-rose-400 text-sm mt-2 hidden"></p>
+                </section>
+                
+                <section class="bg-gray-900 p-6 rounded-xl shadow-2xl border border-gray-700">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-100 flex items-center">
+                        <i data-lucide="bar-chart-2" class="w-6 h-6 mr-2 text-rose-400"></i> Painel de Prioridade (Análise Pareto)
+                    </h2>
+                    <div id="priority-list" class="space-y-3">
+                        <p class="text-gray-500 text-center p-4" id="empty-priority-message">Nenhuma tarefa priorizada. Adicione uma tarefa na seção acima.</p>
+                    </div>
+                </section>
+
+            </div>
+
+            <div class="lg:col-span-1 space-y-8">
+                <section class="bg-gray-900 p-6 rounded-xl shadow-2xl border border-gray-700 h-full">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-100 flex items-center">
+                        <i data-lucide="calendar" class="w-6 h-6 mr-2 text-emerald-400"></i> Agenda & Linha do Tempo
+                    </h2>
+                    <div id="timeline-view" class="h-full max-h-[80vh] overflow-y-auto">
+                        <p class="text-gray-500 text-center p-4" id="empty-timeline-message">Nenhuma atividade programada para os próximos dias.</p>
+                    </div>
+                </section>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="modal-title" class="text-2xl font-bold text-white mb-4 border-b border-gray-700 pb-2">Detalhes da Tarefa</h3>
+            <div id="modal-body" class="space-y-3 text-gray-300">
+                </div>
+            <button id="modal-action-button" onclick="handleModalAction()" class="mt-6 w-full bg-emerald-600 text-white font-bold py-2 rounded-lg hover:bg-emerald-700 transition hidden">
+                Marcar como Concluída
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializa ícones Lucide
+            lucide.createIcons();
+            loadTasks();
+            updateTimelineView();
+            // Define a data de hoje como padrão para o input
+            document.getElementById('event-date').valueAsDate = new Date();
+
+            // Fechar modal ao clicar fora dele
+            window.onclick = function(event) {
+                const modal = document.getElementById('details-modal');
+                if (event.target == modal) {
+                    closeModal();
+                }
+            }
+        });
+
+        let tasks = [];
+
+        // --- Lógica do Sistema de Priorização (Core da Aplicação) ---
+
+        /**
+         * Simula a aplicação de uma fórmula de Priorização Multicritério.
+         * @param {Object} task - O objeto da tarefa
+         * @returns {number} O score de prioridade calculado.
+         */
+        function calculatePriorityScore(task) {
+            // 1. Relevância (Simulação de Pareto - peso 70%)
+            const impactScore = task.impact || 0.5; // Fictício (0.5 a 1.0)
+            const urgencyWeight = task.isUrgent ? 1.5 : 1.0;
+            const relevance = impactScore * 70 * urgencyWeight;
+
+            // 2. Proximidade da Data/Urgência (peso 20%)
+            let dateScore = 0;
+            if (task.dueDate) {
+                const now = new Date();
+                const due = new Date(task.dueDate);
+                const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays <= 0) dateScore = 30;
+                else if (diffDays <= 3) dateScore = 15;
+                else if (diffDays <= 7) dateScore = 5;
+                dateScore = Math.min(dateScore, 20); 
+            }
+
+            // 3. Complexidade/Tempo de Execução (peso 10%)
+            let complexityScore = 10;
+            const duration = parseInt(task.duration) || 30;
+            if (duration > 120) complexityScore = 2;
+            else if (duration > 60) complexityScore = 5; 
+
+            const totalScore = relevance + dateScore + complexityScore;
+            return Math.round(totalScore);
+        }
+
+        /**
+         * Atribui um Nível de Prioridade (1 a 4) com base no Score Calculado.
+         * 1: Alta, 2: Média-Alta, 3: Média, 4: Baixa
+         * @param {number} score - O score de prioridade.
+         * @returns {number} O nível de prioridade.
+         */
+        function getPriorityLevel(score) {
+            if (score >= 100) return 1;
+            if (score >= 70) return 2;
+            if (score >= 40) return 3;
+            return 4;
+        }
+
+        /**
+         * Adiciona uma nova tarefa ao sistema.
+         */
+        function addTask() {
+            const nameInput = document.getElementById('task-name');
+            const dateInput = document.getElementById('event-date');
+            const durationInput = document.getElementById('duration');
+            const observationInput = document.getElementById('observation');
+            const dayInput = document.getElementById('day');
+            const errorMessage = document.getElementById('error-message');
+
+            const name = nameInput.value.trim();
+            const dueDate = dateInput.value;
+            const duration = durationInput.value;
+            const observation = observationInput.value.trim();
+            const day = dayInput.value;
+
+            if (name.length < 3) {
+                errorMessage.textContent = 'O nome da tarefa deve ter pelo menos 3 caracteres.';
+                errorMessage.classList.remove('hidden');
+                return;
+            }
+            errorMessage.classList.add('hidden');
+
+            const impactSim = (Math.random() * 0.5) + 0.5;
+
+            const newTask = {
+                id: Date.now(),
+                name,
+                dueDate,
+                duration,
+                observation,
+                day,
+                isUrgent: dueDate ? new Date(dueDate) <= new Date(Date.now() + 86400000 * 3) : false,
+                impact: impactSim,
+                completed: false
+            };
+
+            // Calcula o score
+            newTask.priorityScore = calculatePriorityScore(newTask);
+
+            tasks.push(newTask);
+            saveTasks();
+            renderPriorityList();
+            updateTimelineView();
+            
+            // Limpa o input principal para UX Extrema
+            nameInput.value = '';
+            dateInput.valueAsDate = new Date();
+            durationInput.value = '30';
+            observationInput.value = '';
+            dayInput.value = '';
+        }
+
+        /**
+         * Exibe o modal de detalhes da tarefa ao clicar no card de prioridade.
+         * @param {number} id - O ID da tarefa.
+         */
+        function showTaskDetails(id) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            const priorityLevel = getPriorityLevel(task.priorityScore);
+            const priorityText = { 1: 'Alta', 2: 'Média-Alta', 3: 'Média', 4: 'Baixa' }[priorityLevel] || 'Indefinida';
+            const dateDisplay = task.dueDate ? new Date(task.dueDate).toLocaleDateString('pt-BR') : 'Nenhuma';
+            
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const actionButton = document.getElementById('modal-action-button');
+
+            modalTitle.textContent = task.name;
+            
+            // Texto do modal em cores claras para o Dark Mode
+            modalBody.innerHTML = `
+                <p><span class="font-semibold">Status:</span> 
+                    <span class="inline-block px-2 py-0.5 text-xs font-bold rounded-full 
+                        ${task.completed ? 'bg-emerald-900 text-emerald-400' : 'bg-rose-900 text-rose-400'}">
+                        ${task.completed ? 'CONCLUÍDA' : 'PENDENTE'}
+                    </span>
+                </p>
+                <p><span class="font-semibold">Prioridade:</span> ${priorityText} (Score: ${task.priorityScore})</p>
+                <p><span class="font-semibold">Data Programada:</span> ${dateDisplay}</p>
+                <p><span class="font-semibold">Duração Estimada:</span> ${task.duration} minutos</p>
+                <p><span class="font-semibold">Repetição:</span> ${task.day || 'Não se repete'}</p>
+                <p><span class="font-semibold">Observação:</span> ${task.observation || 'Nenhuma observação.'}</p>
+                <p class="text-xs text-gray-500 mt-4"><span class="font-semibold">ID:</span> ${task.id}</p>
+            `;
+
+            // Configura o botão de ação (Sucesso/Alerta)
+            if (!task.completed) {
+                actionButton.textContent = 'Marcar como Concluída';
+                actionButton.onclick = () => { toggleComplete(task.id); closeModal(); };
+                actionButton.classList.remove('hidden', 'bg-rose-600', 'hover:bg-rose-700');
+                actionButton.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+            } else {
+                actionButton.textContent = 'Reabrir Tarefa';
+                actionButton.onclick = () => { toggleComplete(task.id, false); closeModal(); };
+                actionButton.classList.remove('hidden', 'bg-emerald-600', 'hover:bg-emerald-700');
+                actionButton.classList.add('bg-rose-600', 'hover:bg-rose-700');
+            }
+            actionButton.classList.remove('hidden');
+
+
+            document.getElementById('details-modal').style.display = 'block';
+        }
+
+        /**
+         * Exibe o modal de detalhes de um evento da timeline.
+         * @param {number} id - O ID da tarefa associada.
+         * @param {string} dateKey - A data específica do evento.
+         * @param {boolean} isRepeat - Se o evento é uma repetição.
+         */
+        function showTimelineDetails(id, dateKey, isRepeat) {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            const eventDate = new Date(dateKey + 'T12:00:00'); // Adiciona um horário neutro para garantir a zona
+            const dateDisplay = eventDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+            
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const actionButton = document.getElementById('modal-action-button');
+
+            modalTitle.textContent = isRepeat ? `Compromisso Repetitivo: ${task.name}` : `Evento Programado: ${task.name}`;
+            
+            // Texto do modal em cores claras para o Dark Mode
+            modalBody.innerHTML = `
+                <p class="text-gray-300"><span class="font-semibold">Dia do Compromisso:</span> ${dateDisplay}</p>
+                <p class="text-gray-300"><span class="font-semibold">Duração Estimada:</span> ${task.duration} minutos</p>
+                <p class="text-gray-300"><span class="font-semibold">Observação:</span> ${task.observation || 'Nenhuma observação.'}</p>
+                <p class="text-gray-300"><span class="font-semibold">Tipo:</span> ${isRepeat ? 'Repetição Semanal/Diária' : 'Evento de Data Única'}</p>
+                ${isRepeat ? `<p class="text-gray-300"><span class="font-semibold">Regra de Repetição:</span> ${task.day || 'Diária'}</p>` : ''}
+                <p class="text-xs text-gray-500 mt-4">Esta visualização é da ocorrência na Linha do Tempo.</p>
+            `;
+            
+            // Oculta o botão de ação de conclusão na visualização da Linha do Tempo (agenda)
+            actionButton.classList.add('hidden');
+            
+            document.getElementById('details-modal').style.display = 'block';
+        }
+
+        /**
+         * Fecha o modal de detalhes.
+         */
+        function closeModal() {
+            document.getElementById('details-modal').style.display = 'none';
+        }
+
+
+        /**
+         * Renderiza a lista de tarefas, ordenando-as pelo score de prioridade.
+         */
+        function renderPriorityList() {
+            const listContainer = document.getElementById('priority-list');
+            const emptyMessage = document.getElementById('empty-priority-message');
+            
+            if (!listContainer || !emptyMessage) {
+                console.error("Erro: Elementos da Lista de Prioridade não encontrados.");
+                return;
+            }
+
+            // Filtra tarefas não completadas e ordena pelo score (descendente)
+            const prioritizedTasks = tasks
+                .filter(t => !t.completed)
+                .sort((a, b) => b.priorityScore - a.priorityScore);
+
+            if (prioritizedTasks.length === 0) {
+                emptyMessage.classList.remove('hidden');
+                listContainer.innerHTML = '';
+                return;
+            }
+            emptyMessage.classList.add('hidden');
+
+            listContainer.innerHTML = prioritizedTasks.map(task => {
+                const priorityLevel = getPriorityLevel(task.priorityScore);
+                let priorityText;
+                let colorClass;
+                // Ajuste das cores para texto em fundos escuros
+                switch(priorityLevel) {
+                    case 1: priorityText = 'ALTA'; colorClass = 'bg-rose-500 text-white'; break; // Rosa/Rose
+                    case 2: priorityText = 'MÉDIA-ALTA'; colorClass = 'bg-yellow-400 text-gray-900'; break; // Amarelo
+                    case 3: priorityText = 'MÉDIA'; colorClass = 'bg-cyan-500 text-gray-900'; break; // Ciano/Cyan
+                    case 4: priorityText = 'BAIXA'; colorClass = 'bg-emerald-500 text-white'; break; // Esmeralda/Emerald
+                }
+
+                const dateDisplay = task.dueDate ? new Date(task.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : 'Sem Data';
+                const observationDisplay = task.observation ? `<p class="text-xs text-gray-400 mt-1 truncate max-w-full">${task.observation}</p>` : '';
+                const durationDisplay = task.duration ? `<span class="text-xs text-gray-400"> | ${task.duration} min</span>` : '';
+                // text-gray-800 -> text-gray-100 (para o nome da tarefa)
+                // text-gray-500 -> text-gray-400 (para detalhes)
+                // text-gray-600 -> text-gray-300 (para data/icon)
+
+                return `
+                    <div class="task-card p-4 rounded-lg shadow-sm border-l-4 priority-${priorityLevel} flex justify-between items-start" onclick="showTaskDetails(${task.id})">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-100">${task.name}</p>
+                            ${observationDisplay}
+                            <div class="mt-1 flex items-center space-x-2">
+                                <span class="inline-flex items-center text-xs font-medium text-gray-300">
+                                    <i data-lucide="calendar" class="w-3 h-3 mr-1"></i> ${dateDisplay}
+                                </span>
+                                ${durationDisplay}
+                            </div>
+                        </div>
+                        <div class="text-right flex items-center">
+                            <span class="inline-block px-2 py-1 text-xs font-bold rounded-full mr-2 ${colorClass}">
+                                ${priorityText} (${task.priorityScore})
+                            </span>
+                            <button onclick="event.stopPropagation(); toggleComplete(${task.id})" class="p-1 text-gray-500 hover:text-emerald-400 transition duration-150" title="Concluir">
+                                <i data-lucide="check-circle" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            lucide.createIcons();
+        }
+        
+        // --- Lógica de Agenda e Linha do Tempo ---
+
+        /**
+         * Gera a visualização da Agenda como Linha do Tempo (Timeline).
+         */
+        function updateTimelineView() {
+            const timelineContainer = document.getElementById('timeline-view');
+            const emptyMessage = document.getElementById('empty-timeline-message');
+            
+            if (!timelineContainer || !emptyMessage) {
+                console.error("Erro: Elementos da Timeline não encontrados.");
+                return;
+            }
+
+            const now = new Date();
+            const daysToShow = 14; 
+            const allEvents = [];
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            for (let i = 0; i < daysToShow; i++) {
+                const date = new Date(now);
+                date.setDate(now.getDate() + i);
+                const dayOfWeek = dayNames[date.getDay()];
+                const dateKey = date.toISOString().split('T')[0];
+                
+                tasks.forEach(task => {
+                    // Eventos Programados (Com Data Específica)
+                    if (task.dueDate === dateKey && !task.day) {
+                        allEvents.push({
+                            taskId: task.id, // Adiciona o ID para detalhes
+                            date: date,
+                            name: task.name,
+                            duration: task.duration,
+                            dateKey: dateKey,
+                            isRepeat: false
+                        });
+                    } 
+                    
+                    // Eventos Repetitivos
+                    if (task.day) {
+                        const isDaily = task.day === 'daily';
+                        const isWeekly = task.day === dayOfWeek;
+                        
+                        if (isDaily || isWeekly) {
+                            if (!(task.dueDate === dateKey && !task.day)) { 
+                                allEvents.push({
+                                    taskId: task.id, // Adiciona o ID para detalhes
+                                    date: date,
+                                    name: task.name,
+                                    duration: task.duration,
+                                    dateKey: dateKey,
+                                    isRepeat: true
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 2. Ordenar os eventos por data
+            allEvents.sort((a, b) => a.date - b.date);
+
+            if (allEvents.length === 0) {
+                emptyMessage.classList.remove('hidden');
+                timelineContainer.innerHTML = '';
+                return;
+            }
+            emptyMessage.classList.add('hidden');
+
+
+            // 3. Renderizar a Linha do Tempo agrupando por dia
+            let lastDate = '';
+            let html = '';
+
+            allEvents.forEach(event => {
+                const eventDate = event.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', weekday: 'short' });
+                const dateKey = event.dateKey;
+                const taskId = event.taskId;
+                const isRepeatValue = event.isRepeat; // Passa o valor booleano
+
+                if (eventDate !== lastDate) {
+                    // Novo bloco de dia - Linha ciano mais escura
+                    html += `
+                        <div class="mt-6 mb-2">
+                            <h3 class="text-lg font-bold text-gray-100 border-b border-cyan-700 pb-1">${eventDate}</h3>
+                        </div>
+                    `;
+                    lastDate = eventDate;
+                }
+                
+                const repeatClass = event.isRepeat ? 'dot-repeat' : '';
+                // Ícones ajustados para as novas cores: Repetição (emerald-400), Programado (cyan-400)
+                const icon = event.isRepeat ? `<i data-lucide="repeat" class="w-4 h-4 mr-1 text-emerald-400"></i>` : `<i data-lucide="clock" class="w-4 h-4 mr-1 text-cyan-400"></i>`;
+                const typeText = event.isRepeat ? `Repetitivo` : `Programado`;
+
+                html += `
+                    <div class="timeline-item ${repeatClass} bg-gray-800 p-3 rounded-lg my-3 shadow-sm hover:shadow-lg transition duration-150"
+                        onclick="showTimelineDetails(${taskId}, '${dateKey}', ${isRepeatValue})">
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="font-medium text-gray-200">${event.name}</p>
+                            <span class="text-xs font-semibold text-gray-400">${event.duration} min</span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-400">
+                            ${icon}
+                            <span>${typeText}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            timelineContainer.innerHTML = html;
+            lucide.createIcons();
+        }
+
+
+        // --- Lógica de Persistência e Controle ---
+
+        /**
+         * Marca ou reabre uma tarefa.
+         * @param {number} id - O ID da tarefa.
+         * @param {boolean} [completed=true] - O novo estado de conclusão.
+         */
+        function toggleComplete(id, completed = true) {
+            const taskIndex = tasks.findIndex(t => t.id === id);
+            if (taskIndex !== -1) {
+                tasks[taskIndex].completed = completed;
+                saveTasks();
+                renderPriorityList();
+                // A timeline não precisa de atualização imediata, pois a conclusão afeta principalmente a Prioridade.
+            }
+        }
+
+        /**
+         * Salva as tarefas no localStorage.
+         */
+        function saveTasks() {
+            try {
+                localStorage.setItem('priorityFlowTasks', JSON.stringify(tasks));
+            } catch (e) {
+                console.error("Erro ao salvar dados no localStorage:", e);
+            }
+        }
+
+        /**
+         * Carrega as tarefas do localStorage.
+         */
+        function loadTasks() {
+            try {
+                const storedTasks = localStorage.getItem('priorityFlowTasks');
+                if (storedTasks) {
+                    tasks = JSON.parse(storedTasks);
+                    tasks.forEach(t => t.priorityScore = calculatePriorityScore(t));
+                    renderPriorityList();
+                }
+            } catch (e) {
+                console.error("Erro ao carregar dados do localStorage. Iniciando com tarefas vazias.", e);
+                tasks = [];
+            }
+        }
+
+    </script>
+</body>
+</html>

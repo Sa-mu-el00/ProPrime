@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ciclo de Aquisição Axiomática (Inglês) - Adaptativo V2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="./utils.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Configuração de Estética (Dark Mode Otimizado) */
+        :root {
+            --color-primary: #03DAC6; /* Cor principal (Estudo) */
+            --color-secondary: #BB86FC; /* Cor de acento */
+            --color-background: #121212;
+            --color-surface: #1E1E1E;
+            --color-text: #E0E0E0;
+            --color-danger: #cf6679; /* Cor para Retrocesso/Alerta */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+        }
+        .container {
+            width: 95%;
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: var(--color-surface);
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .step-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+        .step-number { font-weight: bold; color: var(--color-secondary); }
+        .current { background-color: #333; border-left: 5px solid var(--color-primary); }
+        .completed { opacity: 0.5; background-color: #0A0A0A; border-left: 5px solid var(--color-secondary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="NEXUS.html" class="bg-gray-700 text-white px-3 py-1 rounded-md text-sm mb-4 inline-flex items-center hover:bg-gray-600 transition-colors">
+            <span data-lucide="arrow-left" class="w-4 h-4 mr-2"></span>
+            Voltar ao Nexus
+        </a>
+        
+        <h1 class="text-3xl font-bold mb-6 text-center text-white">CICLO DE INGLÊS ADAPTATIVO</h1>
+        <p id="proficiency-info" class="text-sm mb-4 text-center text-green-400"></p>
+
+        <div id="cycle-display">
+            </div>
+
+        <div class="flex justify-between mt-8">
+            <button onclick="undoStep()" class="bg-red-600 text-white py-2 px-4 rounded-md font-bold hover:bg-red-700 transition-colors flex items-center">
+                <span data-lucide="rotate-ccw" class="w-5 h-5 mr-2"></span>
+                VOLTAR (UNDO)
+            </button>
+            <button onclick="advanceStep()" class="bg-green-600 text-white py-2 px-4 rounded-md font-bold hover:bg-green-700 transition-colors flex items-center">
+                <span data-lucide="check-circle" class="w-5 h-5 mr-2"></span>
+                AVANÇAR PASSO
+            </button>
+        </div>
+    </div>
+    
+    <div id="custom-toast"></div>
+
+    <script type="module">
+        import { showToast, saveLocalData, loadLocalData, getProficiencyIndex } from './utils.js';
+
+        const DEFAULT_STUDY_STEPS = [
+            { name: 'Vetor I: Leitura (10 min)', description: 'Foco no entendimento global e contexto.' },
+            { name: 'Vetor I: Marcação de Vocabulário', description: 'Identificação e extração de 5-10 termos chave (Salvar para Anki).' },
+            { name: 'Vetor II: Áudio (Escuta Ativa)', description: 'Ouvir o material, focando na pronúncia e entonação.' },
+            { name: 'Vetor IV: Autoavaliação Metacrítica', description: 'Revisão rápida do nível de retenção (0-10).' },
+            { name: 'Vetor V: Sumário Escrito (Output Produtivo)', description: 'Produção de um resumo de 3 frases com o novo vocabulário.' },
+        ];
+
+        let STUDY_STEPS = [];
+        let currentStepIndex = 0;
+        const cycleDisplay = document.getElementById('cycle-display');
+
+        // --- 1. FUNÇÃO DE ADAPTAÇÃO DO FLUXO (REQUISITO MÓDULO INGLÊS) ---
+        function generateAdaptiveSteps() {
+            const index = getProficiencyIndex(); // Carrega o índice do Questionário
+            const steps = [...DEFAULT_STUDY_STEPS];
+            
+            document.getElementById('proficiency-info').textContent = `Índice de Proficiência Ativo: ${index.toFixed(2)} / 10.0. Fluxo Adaptado.`;
+
+            // Adiciona ou remove passos com base na proficiência subjetiva
+            if (index < 5.0) {
+                // Proficiência Crítica: Força repetição na Aquisição Lexical
+                steps.splice(2, 0, { 
+                    name: 'Vetor I: REPETIÇÃO do Vocabulário Marcado', 
+                    description: 'Repetição fonética e contextual dos termos extraídos.', 
+                    isDynamic: true 
+                });
+            } else if (index >= 7.5) {
+                // Otimização Avançada: Injeta Consolidação Gramatical (Vetor III)
+                steps.splice(4, 0, { 
+                    name: 'Vetor III: Consolidação Gramatical', 
+                    description: 'Reescrita das frases-chave aplicando uma regra gramatical específica (e.g., Passive Voice).', 
+                    isDynamic: true 
+                });
+            }
+
+            return steps;
+        }
+
+        // --- 2. GESTÃO DE ESTADO (LOCAL STORAGE) ---
+        function saveCycleState() {
+            saveLocalData('englishStudyState', { index: currentStepIndex });
+        }
+
+        function loadCycleState() {
+            const savedState = loadLocalData('englishStudyState', { index: 0 });
+            currentStepIndex = savedState.index;
+        }
+
+        // --- 3. RENDERIZAÇÃO ---
+        function renderCycle() {
+            cycleDisplay.innerHTML = '';
+            STUDY_STEPS.forEach((step, index) => {
+                const isCurrent = index === currentStepIndex;
+                const isCompleted = index < currentStepIndex;
+                
+                const stepEl = document.createElement('div');
+                stepEl.className = `step-item p-4 ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`;
+                
+                stepEl.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="step-number text-lg">${index + 1}.</span>
+                        <span class="step-name text-lg font-semibold">${step.name}</span>
+                    </div>
+                    <p class="text-sm text-gray-400 mt-1">${step.description}</p>
+                `;
+                cycleDisplay.appendChild(stepEl);
+            });
+            saveCycleState();
+        }
+
+        // --- 4. FUNÇÕES DE FLUXO ---
+        window.advanceStep = function() {
+            let newStepIndex;
+
+            if (currentStepIndex < STUDY_STEPS.length - 1) {
+                newStepIndex = currentStepIndex + 1;
+                showToast(`Passo ${newStepIndex + 1} de ${STUDY_STEPS.length} CONCLUÍDO.`, false);
+            } else {
+                newStepIndex = 0; 
+                showToast(`🎉 PARABÉNS! Ciclo de Aquisição Concluído. Iniciando novo loop.`, false);
+            }
+            
+            currentStepIndex = newStepIndex;
+            renderCycle();
+        }
+
+        /**
+         * FUNÇÃO DE RETROCESSO (UNDO) (REQUISITO CUMPRIDO)
+         */
+        window.undoStep = function() {
+            if (currentStepIndex === 0) {
+                currentStepIndex = STUDY_STEPS.length - 1; 
+                showToast(`« UNDO COMPLETO: Retornou para o fim do ciclo anterior.`, true);
+            } else {
+                currentStepIndex--;
+                showToast(`« UNDO: Retornou ao passo ${currentStepIndex + 1} de ${STUDY_STEPS.length}.`, true);
+            }
+            
+            renderCycle();
+        }
+
+        // --- 5. INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            STUDY_STEPS = generateAdaptiveSteps();
+            loadCycleState();
+            renderCycle();
+            lucide.createIcons();
+        });
+
+    </script>
+</body>
+</html>

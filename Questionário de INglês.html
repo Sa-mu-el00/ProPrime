@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Performance Cognitiva em Inglês - Diagnóstico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="./utils.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #dcdcdc;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background-color: #1E1E1E;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            color: #03DAC6; /* Cor de acento: Estudo */
+            border-bottom: 2px solid #3c3c3c;
+            padding-bottom: 10px;
+            margin-top: 25px;
+            text-align: center;
+        }
+        .question-group {
+            margin-bottom: 25px;
+            padding: 15px;
+            border: 1px solid #3c3c3c;
+            border-radius: 6px;
+        }
+        .return-button { background-color: #333; color: #E0E0E0; padding: 10px; border-radius: 5px; margin-bottom: 20px; display: inline-flex; align-items: center; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="NEXUS.html" class="return-button">
+            <span data-lucide="arrow-left" class="w-5 h-5 mr-2"></span>
+            Voltar ao Nexus
+        </a>
+
+        <h1>DIAGNÓSTICO DE PROFICIÊNCIA EM INGLÊS</h1>
+        
+        <form id="assessment-form">
+            <div class="question-group">
+                <h2 class="text-xl font-bold mb-3 text-white">1. Aquisição Lexical (Vocabulário)</h2>
+                <label class="block mb-2">Quão rápido você consegue incorporar novas palavras ativamente?</label>
+                <input type="range" name="q1" data-weight="2" min="1" max="10" value="5" class="w-full h-2 bg-gray-700 rounded-lg">
+                <p class="text-sm text-gray-500 mt-1 flex justify-between"><span>1 (Lento)</span><span>10 (Rápido)</span></p>
+            </div>
+
+            <div class="question-group">
+                <h2 class="text-xl font-bold mb-3 text-white">2. Consolidação Sintática (Gramática)</h2>
+                <label class="block mb-2">Quão seguro você está para usar estruturas gramaticais complexas (e.g., *Conditional* ou *Passive Voice*)?</label>
+                <input type="range" name="q2" data-weight="3" min="1" max="10" value="5" class="w-full h-2 bg-gray-700 rounded-lg">
+                <p class="text-sm text-gray-500 mt-1 flex justify-between"><span>1 (Inseguro)</span><span>10 (Fluente)</span></p>
+            </div>
+            
+            <div class="question-group">
+                <h2 class="text-xl font-bold mb-3 text-white">3. Fluência Fonética (Pronúncia/Escuta)</h2>
+                <label class="block mb-2">Qual a sua taxa de compreensão de áudio em velocidade nativa sem legenda?</label>
+                <input type="range" name="q3" data-weight="3" min="1" max="10" value="5" class="w-full h-2 bg-gray-700 rounded-lg">
+                <p class="text-sm text-gray-500 mt-1 flex justify-between"><span>1 (Muito Baixa)</span><span>10 (Total)</span></p>
+            </div>
+
+            <button type="submit" class="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors mt-5">
+                GERAR DIAGNÓSTICO E CALIBRAR FLUXO
+            </button>
+        </form>
+
+        <div id="results-output" class="mt-8 p-6 bg-gray-800 rounded-lg hidden">
+            <h2 class="text-2xl font-bold mb-4 text-[#03DAC6]">RESULTADO DA CALIBRAÇÃO</h2>
+            <p id="summary-p" class="mb-4 text-white"></p>
+            <div id="recommendations-list" class="space-y-4"></div>
+        </div>
+    </div>
+    
+    <div id="custom-toast"></div>
+
+    <script type="module">
+        import { saveLocalData, showToast } from './utils.js';
+
+        document.getElementById('assessment-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            let totalWeightedScore = 0;
+            let totalWeight = 0;
+
+            const inputs = this.querySelectorAll('input[type="range"]');
+            inputs.forEach(input => {
+                const score = parseInt(input.value);
+                const weight = parseInt(input.getAttribute('data-weight'));
+                
+                totalWeightedScore += score * weight;
+                totalWeight += weight;
+            });
+
+            // Índice Ponderado de Proficiência Subjetiva
+            const normalizedIndex = (totalWeightedScore / totalWeight).toFixed(2);
+            
+            // --- CORREÇÃO CRÍTICA: SALVAMENTO LOCAL PARA O CICLO DE INGLÊS ---
+            saveLocalData('english_proficiency_index', parseFloat(normalizedIndex));
+            // -----------------------------------------------------------------
+
+            // Lógica de Avaliação
+            const recommendations = [];
+            let generalAssessment = "";
+
+            if (normalizedIndex < 5.0) {
+                generalAssessment = "Nível de **Proficiência Crítica**. Seu ciclo de estudos será adaptado para priorizar a aquisição lexical e repetição. O foco deve ser na eliminação dos pontos de estrangulamento identificados.";
+                recommendations.push({ title: 'Atenção ao Vocabulário', detail: 'A baixa pontuação sugere falha na retenção de vocabulário-chave.', action: 'O Ciclo de Inglês será adaptado para forçar a REPETIÇÃO do Vocabulário (Vetor I).' });
+            } else if (normalizedIndex >= 5.0 && normalizedIndex < 7.5) {
+                generalAssessment = "Nível de **Proficiência em Desenvolvimento**. O algoritmo sugere que você já possui bases, mas as lacunas sintáticas e fonéticas estão impedindo a fluência. Foco na precisão, não apenas na velocidade.";
+                recommendations.push({ title: 'Foco em Gramática', detail: 'A gramática é o seu principal ponto de fricção.', action: 'O Ciclo de Inglês será adaptado para INJETAR o passo de Consolidação Gramatical (Vetor III).' });
+            } else {
+                generalAssessment = "Nível de **Otimização Avançada**. Sua proficiência subjetiva é alta, e as recomendações visam refinar desvios menores e potencializar a automatização do Output.";
+                recommendations.push({ title: 'Refino de Output', detail: 'Seu foco deve ser na produção de texto/fala complexa.', action: 'Continue focando no Sumário Escrito (Vetor V).' });
+            }
+
+            // Exibir Resultados
+            const summaryP = document.getElementById('summary-p');
+            const recommendationsListDiv = document.getElementById('recommendations-list');
+            
+            summaryP.innerHTML = `**Índice Ponderado de Proficiência Subjetiva:** ${normalizedIndex} / 10.00<br><br>**Avaliação:** ${generalAssessment}`;
+            recommendationsListDiv.innerHTML = '';
+
+            if (recommendations.length === 0) {
+                 recommendationsListDiv.innerHTML = '<div class="p-3 bg-green-900 rounded">O algoritmo não identificou desvios críticos. Mantenha o rigor metodológico.</div>';
+            } else {
+                recommendations.forEach(rec => {
+                    recommendationsListDiv.innerHTML += `
+                        <div class="p-3 bg-gray-700 rounded">
+                            <h3 class="font-bold text-[#BB86FC]">${rec.title}</h3>
+                            <p class="text-sm"><strong>Ação Estratégica:</strong> ${rec.action}</p>
+                        </div>
+                    `;
+                });
+            }
+
+            document.getElementById('results-output').classList.remove('hidden');
+            showToast(`Diagnóstico Concluído! Índice ${normalizedIndex} salvo.`, false);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

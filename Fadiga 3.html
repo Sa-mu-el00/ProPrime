@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise Avançada da TDP (Taxa de Declínio da Performance)</title>
+    <style>
+        /* Estilização mantida e consolidada */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 95%;
+            max-width: 1200px;
+            background-color: #161b22;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            color: #79c0ff;
+            text-align: center;
+            border-bottom: 2px solid #30363d;
+            padding-bottom: 10px;
+        }
+        .main-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr; 
+            gap: 20px;
+        }
+        .task-column {
+            display: flex;
+            flex-direction: column;
+        }
+        .graph-column {
+            padding: 10px;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+        .reaction-area {
+            width: 100%;
+            height: 250px;
+            background-color: #4b4b4b; 
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+        .reaction-area.go { background-color: #238636; }
+        .reaction-area.fail { background-color: #ff5858; }
+        .reaction-area.paused { background-color: #ffa657; }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .controls button {
+            background-color: #58a6ff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .input-duration {
+            padding: 8px;
+            background-color: #161b22;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            width: 80px;
+            text-align: center;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .metric-box {
+            background-color: #1a1f26;
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+            border-left: 3px solid #ffa657;
+            font-size: 0.9em;
+        }
+        .metric-box span {
+            display: block;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #c9d1d9;
+        }
+
+        #tdp-graph {
+            height: 350px;
+            position: relative;
+            margin-top: 10px;
+            overflow: hidden; 
+        }
+        #tdp-graph svg {
+            position: absolute;
+            top: 0; left: 0;
+        }
+        .graph-legend {
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        .legend-color {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        /* Novas Seções de Projeção */
+        #real-time-projection {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #1a1f26;
+            border-radius: 8px;
+            border-top: 3px solid #ffa657;
+        }
+        #real-time-projection h3 {
+            color: #79c0ff;
+            margin-top: 0;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 5px;
+        }
+        .projection-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .projection-box {
+            background-color: #0d1117;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            border-left: 2px solid #58a6ff;
+        }
+        .projection-box strong {
+            display: block;
+            font-size: 1.1em;
+            color: #ffc83d;
+        }
+
+        /* Modal e Relatório */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.8); }
+        .modal-content { background-color: #161b22; margin: 15% auto; padding: 25px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 10px; }
+        .modal-content label { display: block; margin-top: 15px; font-weight: bold; }
+        .modal-content input[type="range"] { width: 100%; margin-top: 5px; }
+        .modal-content button { margin-top: 20px; padding: 10px 20px; background-color: #238636; color: white; border: none; border-radius: 5px; cursor: pointer; }
+
+        #final-report { margin-top: 30px; padding: 20px; background-color: #1a1f26; border-radius: 8px; border-top: 3px solid #79c0ff; }
+        #final-report h2 { color: #ff5858; border-bottom: 1px solid solid #30363d; padding-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Análise de Estabilidade Cognitiva (TDP)</h1>
+        <p>Regra: Clique o mais rápido possível (**Espaço** ou Mouse) assim que a cor MUDAR para **VERDE**. A espera é imprevisível e adaptada (1s a 40s).</p>
+
+        <div class="main-layout">
+            <div class="task-column">
+                <div class="reaction-area" id="reaction-area">Clique em Iniciar Treino</div>
+
+                <div class="controls">
+                    <button onclick="startTraining()" id="start-btn">INICIAR / REINICIAR</button>
+                    <button onclick="togglePause()" id="pause-btn" disabled>PAUSAR</button>
+                    <input type="number" id="duration-input" class="input-duration" value="1" min="1" max="360" placeholder="Minutos">
+                    <label for="duration-input">Minutos</label>
+                    <div style="margin-left: 20px;">Tempo Restante: <span id="time-remaining" style="color: #ffa657;">--:--</span></div>
+                </div>
+
+                <h3>Métricas de Desempenho</h3>
+                <div class="metrics-grid">
+                    <div class="metric-box">Último TR <span id="last-tr">---</span></div>
+                    <div class="metric-box">TR Mínimo <span id="min-tr">---</span></div>
+                    <div class="metric-box">TR Máximo <span id="max-tr">---</span></div>
+                    <div class="metric-box">TR Média Ponderada (Lote 10) <span id="avg-tr-batch">---</span></div>
+                    <div class="metric-box">TR Ponderada Exp. (EWMA) <span id="ewma-tr">---</span></div>
+                    <div class="metric-box">**Desvio Padrão ($\sigma$)** <span id="std-dev">---</span></div>
+                    <div class="metric-box">Falsos Inícios <span id="false-starts">0</span></div>
+                    <div class="metric-box">Erros de Omissão <span id="omission-errors">0</span></div>
+                </div>
+                
+                <div id="real-time-projection">
+                    <h3>Projeção de Performance em Prova (Tempo Real) 📈</h3>
+                    <div class="projection-grid">
+                        <div class="projection-box">Risco Lógica/RLM (Impulsividade) <br><strong><span id="proj-rlm-risk">---</span></strong></div>
+                        <div class="projection-box">Custo Temporal (ENEM/Auditoria) <br><strong><span id="proj-time-cost">---</span></strong></div>
+                        <div class="projection-box">Probabilidade de Colapso Hedônico <br><strong><span id="proj-fs-risk">---</span></strong></div>
+                    </div>
+                </div>
+                </div>
+
+            <div class="graph-column">
+                <h3>Gráfico de Estabilidade Cognitiva (TDP)</h3>
+                <div id="tdp-graph">
+                    </div>
+                <div class="graph-legend">
+                    <div class="legend-item"><span class="legend-color" style="background-color:#58a6ff;"></span>TR Médio (Lote)</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color:#ffc83d;"></span>Fadiga Real (EWMA)</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color:#c89f58;"></span>Projeção Desempenho</div>
+                    <div class="legend-item"><span class="legend-color" style="background-color:#ff5858; border: 1px dotted #ff5858;"></span>Fadiga Subjetiva ($\text{FS}$)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="final-report" style="display:none;"></div>
+    </div>
+
+    <div id="questionnaire-modal" class="modal">
+      <div class="modal-content">
+        <h2>Protocolo Cognitivo (<span id="protocol-stage">Pré-Teste</span>)</h2>
+        <p>Por favor, avalie seu estado atual de 0 (Nenhuma) a 10 (Máxima).</p>
+
+        <label for="focus-level">1. Nível de Foco e Alerta (Inverso: 10=Máximo Foco, 0=Mínimo Foco)</label>
+        <input type="range" id="focus-level" min="0" max="10" value="5">
+        <span id="focus-value">5</span>
+
+        <label for="energy-level">2. Sensação de Fadiga/Cansaço Subjetivo (0=Nenhuma Fadiga, 10=Exaustão Total)</label>
+        <input type="range" id="energy-level" min="0" max="10" value="5">
+        <span id="energy-value">5</span>
+
+        <button id="modal-submit">Continuar</button>
+      </div>
+    </div>
+
+    <script>
+        // --- Variáveis de Estado Global ---
+        let isRunning = false;
+        let isPaused = false;
+        let isWaiting = false;
+        let isGo = false;
+        let startTime = 0;
+        let testStartTime = 0;
+        let timeoutHandle = null;
+        let intervalHandle = null;
+        let timeLimitMs = 0;
+        
+        // --- Variáveis de Performance ---
+        let reactionTimes = [];
+        let batchAverages = [];
+        let batchTimestamps = []; 
+        let falseStarts = 0;
+        let omissionErrors = 0;
+        let reportData = {};
+        let fsData = { pre: 0, post: 0, current: 0 }; 
+        
+        const MAX_RT_HISTORY = 500; 
+        const MAX_BATCH_HISTORY = 100; 
+        const BATCH_SIZE = 10;       
+        const EWMA_ALPHA = 0.1;      
+        
+        const REACTION_AREA = document.getElementById('reaction-area');
+        const MODAL = document.getElementById('questionnaire-modal');
+        const MODAL_SUBMIT = document.getElementById('modal-submit');
+        
+        const MAX_WAIT_MS = 40000; 
+        const MIN_WAIT_MS = 1000;  
+        
+        // --- Funções Auxiliares de Cálculo ---
+        function calculateMean(arr) {
+            if (arr.length === 0) return 0;
+            return arr.reduce((a, b) => a + b, 0) / arr.length;
+        }
+
+        function calculateStdDev(arr, mean) {
+            if (arr.length < 2) return 0;
+            const squareDiffs = arr.map(value => (value - mean) ** 2);
+            const avgSquareDiff = calculateMean(squareDiffs);
+            return Math.sqrt(avgSquareDiff);
+        }
+
+        function calculateEWMA(arr) {
+            if (arr.length === 0) return 0;
+            let ewma = arr[0];
+            for (let i = 1; i < arr.length; i++) {
+                ewma = (arr[i] * EWMA_ALPHA) + (ewma * (1 - EWMA_ALPHA));
+            }
+            return ewma;
+        }
+        
+        function calculateRegression(x, y) {
+            if (x.length !== y.length || x.length < 2) return { slope: 0, intercept: calculateMean(y) };
+            const n = x.length;
+            const xMean = calculateMean(x);
+            const yMean = calculateMean(y);
+            let num = 0;
+            let den = 0;
+            for (let i = 0; i < n; i++) {
+                num += (x[i] - xMean) * (y[i] - yMean);
+                den += (x[i] - xMean) ** 2;
+            }
+            const slope = den === 0 ? 0 : num / den;
+            const intercept = yMean - slope * xMean;
+            return { slope, intercept };
+        }
+
+        function normalizeTR(tr) {
+            const minTr = 100; 
+            const maxTr = 600; 
+            const clampedTr = Math.min(maxTr, Math.max(minTr, tr));
+            
+            return 100 - ((clampedTr - minTr) / (maxTr - minTr)) * 100; 
+        }
+
+        function getDynamicWaitTime() {
+            const recentRTs = reactionTimes.slice(-3 * BATCH_SIZE);
+            if (recentRTs.length < BATCH_SIZE) {
+                return Math.random() * (MAX_WAIT_MS - MIN_WAIT_MS) + MIN_WAIT_MS;
+            }
+
+            const mean = calculateMean(recentRTs);
+            const stdDev = calculateStdDev(recentRTs, mean);
+
+            const meanPenalty = mean > 500 ? (mean - 500) * 0.5 : 0; 
+            const sigmaPenalty = stdDev > 100 ? (stdDev - 100) * 1 : 0;
+            
+            let adaptiveMaxWait = MAX_WAIT_MS - meanPenalty - sigmaPenalty;
+
+            adaptiveMaxWait = Math.max(adaptiveMaxWait, 10000); 
+
+            return Math.random() * (adaptiveMaxWait - MIN_WAIT_MS) + MIN_WAIT_MS;
+        }
+
+        // --- Funções de Estado e Controle ---
+        
+        async function startTraining() {
+            if (isRunning) {
+                if (!confirm("O treino está em andamento. Deseja REINICIAR?")) return;
+            }
+            
+            // 1. Resetar
+            stopTraining(); 
+            
+            // 2. Coletar e Iniciar
+            const durationMinutes = parseInt(document.getElementById('duration-input').value);
+            timeLimitMs = durationMinutes * 60 * 1000;
+            
+            if (isNaN(timeLimitMs) || timeLimitMs <= 0) {
+                alert("Por favor, insira uma duração válida em minutos.");
+                return;
+            }
+
+            // 3. Questionário Pré-Teste
+            await showQuestionnaire('pre'); 
+
+            // 4. Iniciar Cronômetro e Loop
+            isRunning = true;
+            testStartTime = Date.now();
+            document.getElementById('start-btn').textContent = "REINICIAR";
+            document.getElementById('pause-btn').disabled = false;
+            
+            updateMetrics(null);
+            REACTION_AREA.textContent = "Aguarde a cor mudar...";
+            REACTION_AREA.style.backgroundColor = '#4b4b4b';
+
+            intervalHandle = setInterval(updateTimer, 1000);
+            
+            waitAndGo(); 
+        }
+
+        function stopTraining() {
+            isRunning = false;
+            isPaused = false;
+            isWaiting = false;
+            isGo = false;
+            
+            clearTimeout(timeoutHandle);
+            clearInterval(intervalHandle);
+            
+            REACTION_AREA.textContent = "Clique em Iniciar Treino";
+            REACTION_AREA.style.backgroundColor = '#4b4b4b';
+            document.getElementById('time-remaining').textContent = '--:--';
+            document.getElementById('start-btn').textContent = "INICIAR";
+            document.getElementById('pause-btn').disabled = true;
+            document.getElementById('pause-btn').textContent = "PAUSAR";
+            REACTION_AREA.classList.remove('go', 'fail', 'paused');
+
+            if (reactionTimes.length > 0) {
+                 showReport(); 
+            } else {
+                 document.getElementById('final-report').style.display = 'none';
+            }
+        }
+
+        function togglePause() {
+            if (!isRunning) return;
+
+            isPaused = !isPaused;
+            document.getElementById('pause-btn').textContent = isPaused ? "CONTINUAR" : "PAUSAR";
+            
+            if (isPaused) {
+                clearTimeout(timeoutHandle);
+                clearInterval(intervalHandle);
+                REACTION_AREA.textContent = "PAUSA ATIVA";
+                REACTION_AREA.style.backgroundColor = '#ffa657';
+            } else {
+                intervalHandle = setInterval(updateTimer, 1000);
+                if (isGo) {
+                    // Se estava em GO, reinicia o cronômetro GO
+                    startTime = Date.now();
+                } else if (isWaiting) {
+                    // Se estava esperando, reinicia o loop de espera (waitAndGo irá recalcular o tempo restante)
+                    waitAndGo();
+                } else {
+                    // Caso contrário, volta para o estado de espera normal
+                    REACTION_AREA.textContent = "Aguarde a cor mudar...";
+                    REACTION_AREA.style.backgroundColor = '#4b4b4b';
+                    waitAndGo();
+                }
+            }
+        }
+
+        function waitAndGo() {
+            if (!isRunning || isPaused) return;
+
+            REACTION_AREA.classList.remove('go', 'fail');
+            REACTION_AREA.textContent = "Aguarde a cor mudar...";
+            REACTION_AREA.style.backgroundColor = '#4b4b4b';
+            isWaiting = true;
+            isGo = false;
+
+            const waitTime = getDynamicWaitTime();
+
+            timeoutHandle = setTimeout(() => {
+                if (!isRunning || isPaused) return; 
+
+                REACTION_AREA.textContent = "CLIQUE AGORA!";
+                REACTION_AREA.style.backgroundColor = '#238636'; 
+                REACTION_AREA.classList.add('go');
+                isWaiting = false;
+                isGo = true;
+                startTime = Date.now(); 
+
+                // Timeout para erro de omissão (5 segundos)
+                timeoutHandle = setTimeout(() => {
+                    if (isGo) { 
+                        omissionErrors++;
+                        updateMetrics(null);
+                        waitAndGo(); 
+                    }
+                }, 5000); 
+
+            }, waitTime);
+        }
+
+        async function handleClick() {
+            if (!isRunning || isPaused) return;
+
+            const clickTime = Date.now();
+
+            if (isGo) {
+                // Sucesso
+                const reactionTime = clickTime - startTime;
+                reactionTimes.push(reactionTime);
+                
+                // Mantenha o histórico limitado
+                if (reactionTimes.length > MAX_RT_HISTORY) {
+                    reactionTimes.shift(); 
+                }
+
+                // Calcular média do lote e salvar timestamp
+                if (reactionTimes.length % BATCH_SIZE === 0) {
+                    const batchRts = reactionTimes.slice(-BATCH_SIZE);
+                    batchAverages.push(calculateMean(batchRts));
+                    batchTimestamps.push(clickTime);
+                    
+                    if (batchAverages.length > MAX_BATCH_HISTORY) {
+                        batchAverages.shift();
+                        batchTimestamps.shift();
+                    }
+                }
+
+                updateMetrics(reactionTime); 
+                clearTimeout(timeoutHandle); 
+                waitAndGo();
+
+            } else if (isWaiting) {
+                // Falso Início (Impulsividade)
+                falseStarts++;
+                updateMetrics(null);
+                
+                clearTimeout(timeoutHandle);
+                REACTION_AREA.textContent = "Falso Início! Aguarde a penalidade.";
+                REACTION_AREA.style.backgroundColor = '#ff5858'; 
+                REACTION_AREA.classList.add('fail');
+                isWaiting = false;
+
+                // Penalidade de 3 segundos antes de reiniciar o ciclo
+                timeoutHandle = setTimeout(() => {
+                    if (isRunning && !isPaused) waitAndGo();
+                }, 3000);
+
+            } else {
+                // Clique inválido (entre ciclos, etc.)
+                // Ignorar
+            }
+        }
+
+        function updateTimer() {
+            if (!isRunning || isPaused) return;
+            
+            const elapsed = Date.now() - testStartTime;
+            const remaining = timeLimitMs - elapsed;
+            
+            if (remaining <= 0) {
+                document.getElementById('time-remaining').textContent = '00:00';
+                showQuestionnaire('post').then(() => {
+                    stopTraining();
+                });
+                return;
+            }
+
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            
+            const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('time-remaining').textContent = formattedTime;
+        }
+
+        // --- Funções Auxiliares de Visualização ---
+        
+        function updateMetrics(lastTr) {
+            const allRts = reactionTimes.length > 0 ? reactionTimes : [0];
+            const mean = calculateMean(allRts);
+            const stdDev = calculateStdDev(allRts, mean);
+            const ewma = calculateEWMA(allRts);
+            
+            const batchRts = allRts.slice(-BATCH_SIZE);
+            const avgBatch = calculateMean(batchRts);
+
+            const totalTrials = reactionTimes.length + falseStarts + omissionErrors;
+            const errorRate = totalTrials > 0 ? ((falseStarts + omissionErrors) / totalTrials) * 100 : 0;
+            
+            const xData = batchAverages.map((_, i) => i);
+            const yData = batchAverages;
+            const { slope } = calculateRegression(xData, yData);
+
+            reportData = {
+                minTr: allRts.length > 1 ? Math.min(...allRts.filter(r => r > 0)).toFixed(2) : '---',
+                maxTr: allRts.length > 1 ? Math.max(...allRts).toFixed(2) : '---',
+                avgBatch: batchRts.length > 1 ? avgBatch.toFixed(2) : '---',
+                ewma: allRts.length > 1 ? ewma.toFixed(2) : '---',
+                stdDev: stdDev.toFixed(2),
+                errorRate: errorRate.toFixed(2),
+                falseStarts: falseStarts,
+                omissionErrors: omissionErrors,
+                totalTrials: reactionTimes.length,
+                initialBatchAvg: batchAverages.length > 0 ? batchAverages[0].toFixed(2) : '---',
+                finalBatchAvg: batchAverages.length > 0 ? batchAverages[batchAverages.length - 1].toFixed(2) : '---',
+                fsDelta: fsData.post - fsData.pre,
+                projSlope: slope.toFixed(4)
+            };
+
+            document.getElementById('last-tr').textContent = lastTr ? lastTr.toFixed(2) + 'ms' : '---';
+            document.getElementById('min-tr').textContent = reportData.minTr + 'ms';
+            document.getElementById('max-tr').textContent = reportData.maxTr + 'ms';
+            document.getElementById('avg-tr-batch').textContent = reportData.avgBatch + 'ms';
+            document.getElementById('ewma-tr').textContent = reportData.ewma + 'ms';
+            document.getElementById('std-dev').textContent = reportData.stdDev + 'ms';
+            document.getElementById('false-starts').textContent = reportData.falseStarts;
+            document.getElementById('omission-errors').textContent = reportData.omissionErrors;
+
+            updateRealTimeProjection(reportData); 
+            updateGraph();
+        }
+
+        // --- Projeção de Performance em Tempo Real (SCoT) ---
+        function updateRealTimeProjection(currentMetrics) {
+            const { ewma, stdDev, falseStarts, totalTrials, fsDelta } = currentMetrics;
+
+            if (totalTrials < 20) {
+                document.getElementById('proj-rlm-risk').textContent = "Calibrando...";
+                document.getElementById('proj-time-cost').textContent = "Calibrando...";
+                document.getElementById('proj-fs-risk').textContent = "Calibrando...";
+                return;
+            }
+
+            // 1. Risco Lógica/RLM (Impulsividade)
+            const fsRate = falseStarts / totalTrials;
+            let rlmRisk = fsRate * 100 * 5; 
+            rlmRisk = Math.min(rlmRisk, 100); 
+            
+            document.getElementById('proj-rlm-risk').textContent = `${rlmRisk.toFixed(1)}% Risco por Impulsividade`;
+
+            // 2. Custo Temporal (ENEM/Auditoria)
+            const TR_IDEAL = 250;
+            const costFactor = (ewma - TR_IDEAL) + (stdDev * 0.5); 
+            let timeCostPerQ = costFactor / 1000; 
+            timeCostPerQ = Math.max(0, timeCostPerQ);
+
+            document.getElementById('proj-time-cost').textContent = `+${timeCostPerQ.toFixed(1)}s Custo de Variabilidade/Q`;
+
+            // 3. Probabilidade de Colapso Hedônico ($\Delta \text{FS}$)
+            // Usa o Delta FS e a fadiga real (EWMA)
+            let fsRiskScore = 0;
+            if (ewma > 400 && stdDev > 100) {
+                fsRiskScore = (ewma - 400) * 0.1 + (stdDev - 100) * 0.2;
+            }
+            if (fsDelta !== '---' && fsDelta > 0.5) {
+                fsRiskScore += fsDelta * 15;
+            }
+            fsRiskScore = Math.min(fsRiskScore, 100); 
+
+            let fsRiskText = 'Estável';
+            if (fsRiskScore > 75) {
+                fsRiskText = `CRÍTICO (${fsRiskScore.toFixed(0)}%)`;
+            } else if (fsRiskScore > 40) {
+                fsRiskText = `Alto (${fsRiskScore.toFixed(0)}%)`;
+            }
+
+            document.getElementById('proj-fs-risk').textContent = fsRiskText;
+
+        }
+
+        // --- Funções de Gráfico e Relatório (Mantidas) ---
+        function updateGraph() {
+            const graph = document.getElementById('tdp-graph');
+            graph.innerHTML = ''; 
+            
+            const displayedBatches = batchAverages.slice(-MAX_BATCH_HISTORY);
+            if (displayedBatches.length < 1) return;
+
+            const totalTestDurationMs = timeLimitMs;
+            const batchesTimestamps = batchTimestamps.slice(-MAX_BATCH_HISTORY);
+
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', '100%');
+            svg.setAttribute('viewBox', '0 0 100 100'); 
+            svg.setAttribute('preserveAspectRatio', 'none');
+
+            const createPolyline = (segments, stroke, strokeWidth, dashArray = 'none') => {
+                const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+                polyline.setAttribute('points', segments.map(([x, y]) => `${x},${y}`).join(' ')); 
+                polyline.setAttribute('stroke', stroke);
+                polyline.setAttribute('stroke-width', strokeWidth);
+                polyline.setAttribute('fill', 'none');
+                if (dashArray !== 'none') polyline.setAttribute('stroke-dasharray', dashArray);
+                return polyline;
+            };
+
+            const getSVGSegments = (data, dataMap) => {
+                let segments = [];
+                data.forEach((val, index) => {
+                    const normalizedY = normalizeTR(dataMap(val));
+                    const timeElapsedMs = batchesTimestamps[index] - testStartTime;
+                    const xPosition = totalTestDurationMs > 0 ? (timeElapsedMs / totalTestDurationMs) * 100 : 0; 
+                    
+                    segments.push([xPosition.toFixed(2), normalizedY.toFixed(2)]);
+                });
+                return segments;
+            };
+
+            const segmentsTR = getSVGSegments(displayedBatches, v => v);
+            if (segmentsTR.length > 1) {
+                svg.appendChild(createPolyline(segmentsTR, '#58a6ff', '1.5'));
+            }
+
+            const ewmaValues = displayedBatches.map((_, i) => calculateEWMA(batchAverages.slice(0, batchAverages.length - displayedBatches.length + i + 1)));
+            const segmentsEWMA = getSVGSegments(ewmaValues, v => v);
+            if (segmentsEWMA.length > 1) {
+                svg.appendChild(createPolyline(segmentsEWMA, '#ffc83d', '2'));
+            }
+
+            const xData = displayedBatches.map((_, i) => i);
+            const yData = displayedBatches;
+            const { slope, intercept } = calculateRegression(xData, yData);
+            
+            const projectionPoints = [
+                [0, normalizeTR(intercept)], 
+                [100, normalizeTR(intercept + slope * displayedBatches.length)] 
+            ];
+            
+            const lineProjection = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            lineProjection.setAttribute('x1', `0%`); 
+            lineProjection.setAttribute('y1', `${projectionPoints[0][1]}%`);
+            lineProjection.setAttribute('x2', `100%`); 
+            lineProjection.setAttribute('y2', `${projectionPoints[1][1]}%`);
+            lineProjection.setAttribute('stroke', '#c89f58');
+            lineProjection.setAttribute('stroke-width', '1');
+            lineProjection.setAttribute('stroke-dasharray', '2,4');
+            svg.appendChild(lineProjection);
+
+            const drawFSLine = (value, timeOffsetPercent, color) => {
+                if (value === 0) return;
+                const mappedTR = 350 + (value * 20); 
+                const normalizedY = normalizeTR(mappedTR);
+                
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute('cx', `${timeOffsetPercent}%`);
+                circle.setAttribute('cy', `${normalizedY}%`);
+                circle.setAttribute('r', '2'); 
+                circle.setAttribute('fill', color);
+                svg.appendChild(circle);
+            };
+
+            // Desenha as linhas de Fadiga Subjetiva se ambas existirem
+            if (fsData.pre > 0 && fsData.post > 0) {
+                 const startY = normalizeTR(350 + (fsData.pre * 20));
+                 const endY = normalizeTR(350 + (fsData.post * 20));
+
+                 const fsLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                 fsLine.setAttribute('x1', '0%'); fsLine.setAttribute('y1', `${startY}%`);
+                 fsLine.setAttribute('x2', '100%'); fsLine.setAttribute('y2', `${endY}%`);
+                 fsLine.setAttribute('stroke', '#ff5858');
+                 fsLine.setAttribute('stroke-width', '1');
+                 fsLine.setAttribute('stroke-dasharray', '5,5');
+                 svg.appendChild(fsLine);
+            }
+
+            // Adiciona pontos de FS se houver apenas um (pré ou pós)
+            if (fsData.pre > 0) drawFSLine(fsData.pre, 0, '#ff5858'); 
+            if (fsData.post > 0) drawFSLine(fsData.post, 100, '#ff5858');
+
+
+            graph.appendChild(svg);
+        }
+
+        function showQuestionnaire(stage) {
+            // Lógica do Modal (mantida)
+            document.getElementById('protocol-stage').textContent = stage === 'pre' ? 'Pré-Teste' : 'Pós-Teste';
+            
+            const defaultFocus = stage === 'pre' ? 5 : 10 - fsData.current;
+            const defaultFatigue = stage === 'pre' ? 5 : fsData.current;
+
+            document.getElementById('focus-level').value = defaultFocus;
+            document.getElementById('energy-level').value = defaultFatigue;
+            document.getElementById('focus-value').textContent = defaultFocus;
+            document.getElementById('energy-value').textContent = defaultFatigue;
+
+
+            document.getElementById('focus-level').oninput = (e) => document.getElementById('focus-value').textContent = e.target.value;
+            document.getElementById('energy-level').oninput = (e) => document.getElementById('energy-value').textContent = e.target.value;
+
+            MODAL.style.display = 'block';
+
+            return new Promise(resolve => {
+                MODAL_SUBMIT.onclick = () => {
+                    const focus = parseInt(document.getElementById('focus-level').value);
+                    const fatigue = parseInt(document.getElementById('energy-level').value);
+                    const fsScore = (fatigue + (10 - focus)) / 2; 
+
+                    if (stage === 'pre') {
+                        fsData.pre = fsScore;
+                        fsData.current = fsScore; // Define o estado atual para projeção
+                    } else {
+                        fsData.post = fsScore;
+                    }
+
+                    MODAL.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
+        async function showReport() {
+            const reportDiv = document.getElementById('final-report');
+            const data = reportData;
+
+            // Lógica do relatório final (simplificada para focar na projeção SCoT)
+            const html = `
+                <h2>Relatório Final de Performance Cognitiva (SCoT)</h2>
+                <p>Análise baseada em ${data.totalTrials} tentativas válidas e ${data.falseStarts} Falsos Inícios.</p>
+                <hr>
+                
+                <h3>Estatísticas Primárias</h3>
+                <ul>
+                    <li>**TR Média Ponderada (EWMA):** ${data.ewma}ms</li>
+                    <li>**Desvio Padrão (Inconsistência $\\mathbf{\\sigma}$):** ${data.stdDev}ms</li>
+                    <li>**Declínio de Performance (Slope da Média):** ${data.projSlope}ms/lote</li>
+                    <li>**Delta Fadiga Subjetiva (FS):** ${fsData.post.toFixed(2)} - ${fsData.pre.toFixed(2)} = **${data.fsDelta.toFixed(2)}**</li>
+                </ul>
+                
+                <h3>Projeção SCoT para Prova de Alto Nível</h3>
+                <div class="projection-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div class="projection-box">Risco Lógica/RLM (Impulsividade) <br><strong>${document.getElementById('proj-rlm-risk').textContent}</strong></div>
+                    <div class="projection-box">Custo Temporal (ENEM/Auditoria) <br><strong>${document.getElementById('proj-time-cost').textContent}</strong></div>
+                    <div class="projection-box">Risco de Colapso Hedônico <br><strong>${document.getElementById('proj-fs-risk').textContent}</strong></div>
+                </div>
+                
+                <p style="margin-top: 15px;">**RECOMENDAÇÃO:** O desempenho indica a necessidade urgente de mitigar a $\mathbf{Inconsistência}$ ($\mathbf{\\sigma}$ alto) e a $\mathbf{Impulsividade}$ ($\mathbf{Falsos}$ $\mathbf{Inícios}$) para otimizar o *pacing* e a precisão em exames como Auditoria Fiscal e ENEM. </p>
+            `;
+
+            reportDiv.innerHTML = html;
+            reportDiv.style.display = 'block';
+        }
+
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('keydown', (event) => {
+                if (event.code === 'Space' && MODAL.style.display !== 'block') {
+                    event.preventDefault(); 
+                    handleClick(); 
+                }
+            });
+            REACTION_AREA.addEventListener('click', handleClick);
+
+            // Garante que as métricas iniciais são carregadas
+            updateMetrics(null); 
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protocolo de Indução de Monotonia (Tédio Extremo)</title>
+    <style>
+        /* Variáveis CSS para Cores de Alto Contraste */
+        :root {
+            --neon-yellow: #FFFF33; /* Amarelo Neon */
+            --background-black: #111111; /* Preto Fundo */
+            --text-white: #FFFFFF; /* Texto Branco */
+            --border-gray: #444444; /* Borda Tecnológica */
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--background-black);
+            color: var(--text-white);
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden; 
+        }
+
+        /* Estrutura Central (Garantindo Centralização Perfeita) */
+        .container {
+            position: relative;
+            z-index: 10;
+            padding: 30px 50px; /* Aumentando padding para destaque */
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--neon-yellow);
+            box-shadow: 0 0 25px var(--neon-yellow), inset 0 0 10px var(--neon-yellow);
+            text-align: center;
+            max-width: 800px;
+            width: 90%;
+            display: flex; /* Flex para alinhar melhor o conteúdo interno */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            color: var(--neon-yellow);
+            font-size: 1.6em;
+            margin-bottom: 8px;
+            text-shadow: 0 0 7px var(--neon-yellow);
+        }
+
+        p {
+            margin-bottom: 25px;
+            color: var(--border-gray);
+            font-size: 0.95em;
+        }
+
+        /* Detalhes Laterais Tecnológicos */
+        .tech-detail {
+            position: fixed;
+            top: 0;
+            width: 50px;
+            height: 100vh;
+            background: repeating-linear-gradient(
+                45deg,
+                var(--background-black),
+                var(--background-black) 10px,
+                var(--border-gray) 10px,
+                var(--border-gray) 11px
+            );
+            opacity: 0.15;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        #left-detail { left: 0; }
+        #right-detail { right: 0; }
+
+        /* Controles e Input */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        button, input[type="number"], label {
+            background-color: var(--background-black);
+            color: var(--neon-yellow);
+            border: 1px solid var(--neon-yellow);
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+            transition: background-color 0.1s;
+            font-family: inherit;
+            font-size: 0.9em;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        
+        input[type="number"] {
+            width: 80px;
+            appearance: textfield;
+            -moz-appearance: textfield; /* Remove setas no Firefox */
+        }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none; /* Remove setas no Chrome/Safari */
+            margin: 0;
+        }
+
+        button:hover {
+            background-color: rgba(255, 255, 51, 0.15);
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            color: var(--border-gray);
+            border-color: var(--border-gray);
+        }
+
+        /* Display de Status */
+        #status-display, #time-display {
+            font-size: 1.1em;
+            color: var(--text-white);
+            background: var(--background-black);
+            border: 1px solid var(--neon-yellow);
+            padding: 10px 15px;
+            margin-top: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Estilos do Cubo 3D */
+        .scene {
+            width: 200px;
+            height: 200px;
+            perspective: 600px;
+            margin: 40px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.05s linear;
+        }
+
+        .face {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border: 2px solid var(--neon-yellow);
+            background-color: rgba(255, 255, 255, 0.05); /* Opacidade ainda mais baixa */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--neon-yellow);
+            box-shadow: inset 0 0 8px var(--neon-yellow); 
+        }
+
+        /* Posicionamento das faces do cubo */
+        .face.front  { transform: rotateY(0deg) translateZ(100px); }
+        .face.back   { transform: rotateY(180deg) translateZ(100px); }
+        .face.right  { transform: rotateY(90deg) translateZ(100px); }
+        .face.left   { transform: rotateY(-90deg) translateZ(100px); }
+        .face.top    { transform: rotateX(90deg) translateZ(100px); }
+        .face.bottom { transform: rotateX(-90deg) translateZ(100px); }
+    </style>
+</head>
+<body>
+
+    <div id="left-detail" class="tech-detail"></div>
+    <div id="right-detail" class="tech-detail"></div>
+
+    <div class="container">
+        <h1>PROTOCOLO ANTI-DOPAMINA: MONOTONIA V.4.0</h1>
+        <p>DEFINA DURAÇÃO. REQUISITO: ATENÇÃO CONSTANTE. Pressione **ESPAÇO** quando o cubo parar em até 5s.</p>
+
+        <div class="controls time-control">
+            <label for="duration-input">Duração (min):</label>
+            <input type="number" id="duration-input" min="1" max="60" value="5">
+        </div>
+
+        <div class="scene">
+            <div id="cube" class="cube">
+                <div class="face front">01</div>
+                <div class="face back">02</div>
+                <div class="face right">03</div>
+                <div class="face left">04</div>
+                <div class="face top">05</div>
+                <div class="face bottom">06</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="start-btn">INICIAR (ENTER)</button>
+            <button id="pause-btn" disabled>PAUSAR</button>
+            <button id="reset-btn">REINICIAR</button>
+        </div>
+
+        <div id="time-display">TEMPO RESTANTE: 05:00</div>
+        <div id="status-display">STATUS: INICIALIZANDO | Pontuação: 0</div>
+    </div>
+
+    <script>
+        const cube = document.getElementById('cube');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const statusDisplay = document.getElementById('status-display');
+        const durationInput = document.getElementById('duration-input');
+        const timeDisplay = document.getElementById('time-display');
+        
+        let isRotating = false;
+        let isPaused = false;
+        let isStopped = false;
+        let rotationAngle = 0;
+        let rotationDirection = 'Y';
+        let frameId = null;
+        let stopTimer = null;
+        let reactionTimer = null;
+        let reactionStartTime = 0;
+        let score = 0;
+        let gameTimer = null; // Novo timer para a duração total
+        let timeRemainingSeconds = 0; // Tempo restante em segundos
+
+        const maxReactionTime = 5000; // 5 segundos em milissegundos
+        
+        /**
+         * Simula a Monotonia: Rotaciona o cubo lentamente.
+         */
+        function rotate() {
+            if (!isRotating) return;
+            
+            rotationAngle += 0.2; 
+            cube.style.transform = `rotate${rotationDirection}(${rotationAngle}deg)`;
+            frameId = requestAnimationFrame(rotate);
+        }
+
+        /**
+         * Atualiza o display do cronômetro.
+         */
+        function updateTimeDisplay() {
+            const minutes = Math.floor(timeRemainingSeconds / 60);
+            const seconds = timeRemainingSeconds % 60;
+            const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timeDisplay.textContent = `TEMPO RESTANTE: ${display}`;
+        }
+
+        /**
+         * Lógica do cronômetro regressivo.
+         */
+        function countdown() {
+            if (timeRemainingSeconds <= 0) {
+                endProtocol('TEMPO DE MONOTONIA ESGOTADO. Protocolo Concluído.');
+                return;
+            }
+            timeRemainingSeconds--;
+            updateTimeDisplay();
+        }
+
+        /**
+         * Inicia a Rotação, Agenda a Parada e o Cronômetro.
+         */
+        function startRotation() {
+            if (isRotating || timeRemainingSeconds === 0) return;
+
+            // Define o tempo se for o primeiro início
+            if (timeRemainingSeconds <= 0 && durationInput.value > 0) {
+                 // Duração é em minutos, converte para segundos
+                timeRemainingSeconds = parseInt(durationInput.value) * 60; 
+                updateTimeDisplay();
+            } else if (timeRemainingSeconds <= 0) {
+                // Caso o usuário tente iniciar sem tempo
+                alert('Defina uma duração válida em minutos.');
+                return;
+            }
+
+            isRotating = true;
+            isPaused = false;
+            isStopped = false;
+            durationInput.disabled = true; // Desabilita edição de tempo durante o jogo
+            
+            // Inicia o cronômetro se não estiver ativo
+            if (!gameTimer) {
+                gameTimer = setInterval(countdown, 1000);
+            }
+            
+            statusDisplay.textContent = 'STATUS: ROTACIONANDO | Pontuação: ' + score;
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            
+            rotate();
+            scheduleStop();
+        }
+
+        /**
+         * Agenda a Parada: 5 a 15 segundos de monotonia.
+         */
+        function scheduleStop() {
+            if (stopTimer) clearTimeout(stopTimer);
+            
+            const randomTime = Math.random() * 10000 + 5000; 
+            
+            stopTimer = setTimeout(() => {
+                if (isRotating) {
+                    stopCube();
+                }
+            }, randomTime);
+        }
+        
+        /**
+         * Para o cubo e inicia o contador de reação.
+         */
+        function stopCube() {
+            cancelAnimationFrame(frameId);
+            isRotating = false;
+            isStopped = true;
+            reactionStartTime = performance.now();
+            statusDisplay.textContent = 'STATUS: PARADO! PRESSIONE ESPAÇO (TEMPO < 5s) | Pontuação: ' + score;
+            
+            reactionTimer = setTimeout(() => {
+                if (isStopped) {
+                    handleFailure('TEMPO ESGOTADO. Lentidão na Reação (Glutamato/Adenosina Ativo).');
+                }
+            }, maxReactionTime);
+        }
+
+        /**
+         * Pausa a Rotação e o Cronômetro.
+         */
+        function pauseRotation() {
+            if (!isRotating && !isStopped) return;
+
+            isRotating = false;
+            isPaused = true;
+            
+            if (stopTimer) clearTimeout(stopTimer); 
+            if (gameTimer) {
+                clearInterval(gameTimer);
+                gameTimer = null;
+            }
+            
+            cancelAnimationFrame(frameId);
+            statusDisplay.textContent = 'STATUS: PAUSADO | Pontuação: ' + score;
+            pauseBtn.disabled = true;
+            startBtn.disabled = false;
+        }
+
+        /**
+         * Reinicia o Protocolo.
+         */
+        function resetProtocol() {
+            endProtocol('STATUS: REINICIADO | Pontuação: 0', false);
+            // Restaura o tempo de exibição com o valor do input
+            timeRemainingSeconds = parseInt(durationInput.value) * 60;
+            updateTimeDisplay();
+            durationInput.disabled = false;
+        }
+        
+        /**
+         * Finaliza o protocolo (por tempo ou por reset).
+         */
+        function endProtocol(message, showAlert = true) {
+            isRotating = false;
+            isPaused = false;
+            isStopped = false;
+            rotationAngle = 0;
+            score = (showAlert) ? score : 0; // Se for reset, zera a pontuação
+            
+            if (frameId) cancelAnimationFrame(frameId);
+            if (stopTimer) clearTimeout(stopTimer);
+            if (reactionTimer) clearTimeout(reactionTimer);
+            if (gameTimer) {
+                clearInterval(gameTimer);
+                gameTimer = null;
+            }
+            
+            cube.style.transform = 'none'; 
+            statusDisplay.textContent = message;
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            
+            if (showAlert) {
+                alert(message);
+            }
+        }
+
+        /**
+         * Lida com a falha na reação (perda de atenção).
+         */
+        function handleFailure(message) {
+            alert(message + ' Pontuação não é perdida, mas o ciclo de atenção foi quebrado.');
+            // Apenas recomeça o ciclo de rotação e parada para manter o tédio
+            startRotation();
+        }
+
+        /**
+         * Lida com o sucesso na reação (Pressionar ESPAÇO no tempo certo).
+         */
+        function handleSuccess() {
+            const reactionTime = performance.now() - reactionStartTime;
+            
+            if (reactionTimer) clearTimeout(reactionTimer); 
+            
+            score++;
+            const reactionSeconds = (reactionTime / 1000).toFixed(2);
+            statusDisplay.textContent = `STATUS: SUCESSO! Reação: ${reactionSeconds}s | Pontuação: ${score}`;
+            
+            // Recomeça a rotação
+            startRotation();
+        }
+
+        // --- Event Listeners ---
+        startBtn.addEventListener('click', startRotation);
+        pauseBtn.addEventListener('click', pauseRotation);
+        resetBtn.addEventListener('click', resetProtocol);
+
+        // Inicializa o display de tempo com o valor padrão do input
+        durationInput.addEventListener('change', () => {
+             // Garante que o tempo seja atualizado ao mudar o input
+            timeRemainingSeconds = parseInt(durationInput.value) * 60; 
+            updateTimeDisplay();
+        });
+        
+        // Listener para teclas (ESPAÇO para reação, ENTER para iniciar)
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault(); 
+                if (isStopped) {
+                    handleSuccess();
+                } else if (isRotating) {
+                    handleFailure('PRESSIONADO ENQUANTO ROTACIONANDO. Falha de Atenção.');
+                }
+            }
+
+            if (event.code === 'Enter' && startBtn.disabled === false) {
+                event.preventDefault(); // Impede o envio de formulário se estiver em um
+                startRotation();
+            }
+        });
+
+        // Inicializa o display de tempo ao carregar
+        resetProtocol(); 
+        durationInput.disabled = false;
+    </script>
+</body>
+</html>

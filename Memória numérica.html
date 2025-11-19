@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protocolo SA-A Neon: Memória Numérica Adaptativa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Variáveis Axiomáticas e Estilo Técnico (Dark Mode Axiomático) */
+        :root {
+            --cor-fundo: #0A0A0A; /* Preto Profundo */
+            --cor-superficie: #161B22; /* Fundo Git-like */
+            --cor-texto: #C9D1D9; /* Branco Suave */
+            --cor-neon: #00FFFF; /* Ciano Neon (Foco) */
+            --cor-acerto: #00FF00; /* Verde Neon */
+            --cor-erro: #FF4444; /* Vermelho Erro */
+            --cor-pausa: #FFFF00; /* Amarelo Pausa */
+        }
+
+        body {
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+            padding: 20px;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 800px;
+            background-color: var(--cor-superficie);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+
+        /* Estilo para o Número Alvo/Exibido */
+        #display-target {
+            font-size: 6rem;
+            font-weight: 800;
+            margin: 40px 0;
+            height: 1.2em;
+            color: var(--cor-neon);
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+            transition: color 0.1s;
+        }
+
+        /* Estilo para o Relatório Técnico */
+        .metric-box {
+            background-color: rgba(0, 255, 255, 0.05);
+            border: 1px solid var(--cor-neon);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--cor-texto);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center mb-6 border-b border-gray-600 pb-3 text-white">
+            Protocolo Cognitivo SA-A: Memória Numérica
+        </h1>
+
+        <div id="display-target" class="text-center">?</div>
+
+        <div class="flex justify-center space-x-4 mb-8">
+            <button id="start-button" class="px-6 py-3 bg-cor-neon text-cor-superficie font-bold rounded-lg shadow-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+            style="background-color: var(--cor-neon); color: var(--cor-superficie);">
+                <span data-lucide="play" class="w-5 h-5 inline mr-2"></span> INICIAR
+            </button>
+            <button id="reset-button" class="px-6 py-3 bg-gray-600 text-white font-bold rounded-lg shadow-lg hover:bg-gray-700 transition-colors disabled:opacity-50">
+                <span data-lucide="rotate-ccw" class="w-5 h-5 inline mr-2"></span> RESETAR
+            </button>
+        </div>
+
+        <div class="mb-8 p-4 bg-gray-800 rounded-lg">
+             <h2 class="text-xl font-semibold mb-3 text-cor-neon" style="color: var(--cor-neon);">Registro de Sequência</h2>
+             <input type="text" id="input-sequence" placeholder="Digite a sequência memorizada..." 
+                    class="w-full p-3 text-lg bg-gray-900 border border-gray-700 rounded-md focus:ring-2 focus:ring-cor-neon focus:border-cor-neon text-white">
+             <button id="submit-sequence" class="mt-3 w-full p-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50">
+                <span data-lucide="check" class="w-5 h-5 inline mr-2"></span> VALIDAR
+             </button>
+             <p id="validation-feedback" class="mt-3 text-center text-lg font-semibold"></p>
+        </div>
+
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8" id="metrics-grid">
+            <div class="metric-box">Dígitos Atuais (N) <div class="metric-value" id="current-digits">3</div></div>
+            <div class="metric-box">$\overline{T_{AP}}$ (ms) <div class="metric-value" id="avg-presentation-time">2000</div></div>
+            <div class="metric-box">Média $\overline{T_R}$ (ms) <div class="metric-value" id="avg-reaction-time">N/A</div></div>
+            <div class="metric-box">Acertos <div class="metric-value" id="success-count">0</div></div>
+        </div>
+        
+        <div class="mt-8 p-4 bg-gray-900 border border-gray-700 rounded-lg">
+            <h2 class="text-lg font-semibold mb-2 text-cor-neon" style="color: var(--cor-neon);">Relatório de Adaptação $\tau$ (Tau)</h2>
+            <div id="adaptation-log" class="h-20 overflow-y-auto text-xs text-gray-400">
+                Aguardando início do Protocolo...
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // --- 1. VARIÁVEIS DO PROTOCOLO ---
+        const ELEMENTS = {
+            display: document.getElementById('display-target'),
+            input: document.getElementById('input-sequence'),
+            startButton: document.getElementById('start-button'),
+            resetButton: document.getElementById('reset-button'),
+            submitButton: document.getElementById('submit-sequence'),
+            feedback: document.getElementById('validation-feedback'),
+            currentDigits: document.getElementById('current-digits'),
+            avgPresentationTime: document.getElementById('avg-presentation-time'),
+            avgReactionTime: document.getElementById('avg-reaction-time'),
+            successCount: document.getElementById('success-count'),
+            adaptationLog: document.getElementById('adaptation-log'),
+        };
+
+        let currentSequence = '';     // Sequência atual de dígitos a ser exibida
+        let currentDigitIndex = 0;    // Índice do dígito sendo exibido
+        let numDigits = 3;            // N (Número de Dígitos)
+        let presentationTime_ms = 2000; // T_AP inicial (em ms)
+
+        let presentationTimer = null; // Intervalo para exibição dos dígitos
+        let startTime = 0;            // Timestamp de início da apresentação
+        let reactionTimes = [];       // Array para armazenar T_R (Tempo de Reação)
+
+        let trialSuccessCount = 0;    // Contagem de acertos totais
+
+        const STATE = {
+            IDLE: 'IDLE',
+            PRESENTING: 'PRESENTING',
+            INPUT: 'INPUT'
+        };
+        let currentState = STATE.IDLE;
+        
+        // --- 2. GERAÇÃO E EXIBIÇÃO ---
+
+        /**
+         * Gera uma sequência de N dígitos únicos (para evitar padrões simples).
+         * @param {number} N - Número de dígitos.
+         * @returns {string} Sequência de dígitos.
+         */
+        function generateSequence(N) {
+            let sequence = '';
+            for (let i = 0; i < N; i++) {
+                // Gera dígitos de 1 a 9 (o 0 é evitado para clareza visual e inicial)
+                sequence += Math.floor(Math.random() * 9) + 1; 
+            }
+            return sequence;
+        }
+
+        /**
+         * Exibe o próximo dígito na sequência.
+         */
+        function displayNextDigit() {
+            if (currentDigitIndex < currentSequence.length) {
+                const digit = currentSequence[currentDigitIndex];
+                ELEMENTS.display.textContent = digit;
+                ELEMENTS.display.style.color = 'var(--cor-neon)';
+                
+                // Registra o tempo de início da apresentação
+                startTime = performance.now(); 
+                
+                currentDigitIndex++;
+            } else {
+                // Fim da apresentação
+                stopPresentation();
+                currentState = STATE.INPUT;
+                ELEMENTS.display.textContent = '???';
+                ELEMENTS.display.style.color = 'var(--cor-pausa)';
+                
+                ELEMENTS.input.value = '';
+                ELEMENTS.input.disabled = false;
+                ELEMENTS.submitButton.disabled = false;
+                ELEMENTS.input.focus();
+                
+                logAdaptation(`Apresentação finalizada. Digite a sequência de ${numDigits} dígitos.`);
+            }
+        }
+
+        /**
+         * Inicia o ciclo de apresentação da sequência.
+         */
+        function startPresentation() {
+            if (currentState !== STATE.IDLE) return;
+
+            // 1. Setup
+            currentSequence = generateSequence(numDigits);
+            currentDigitIndex = 0;
+            currentState = STATE.PRESENTING;
+            ELEMENTS.startButton.disabled = true;
+            ELEMENTS.resetButton.disabled = false;
+            ELEMENTS.input.disabled = true;
+            ELEMENTS.submitButton.disabled = true;
+            ELEMENTS.feedback.textContent = '';
+            
+            logAdaptation(`Ciclo ${trialSuccessCount + 1} - Iniciado. N=${numDigits}. $T_{AP}=${presentationTime_ms.toFixed(0)}ms$.`);
+            
+            // 2. Inicia o Timer/Loop
+            displayNextDigit(); // Exibe o primeiro dígito imediatamente
+            presentationTimer = setInterval(() => {
+                // Cálculo e registro do "Tempo de Reação" (T_R) para o dígito anterior
+                const timeElapsed = performance.now() - startTime;
+                reactionTimes.push(timeElapsed);
+                
+                // Exibe o próximo
+                displayNextDigit();
+
+            }, presentationTime_ms);
+        }
+
+        /**
+         * Interrompe o loop de apresentação.
+         */
+        function stopPresentation() {
+            if (presentationTimer) {
+                clearInterval(presentationTimer);
+                presentationTimer = null;
+            }
+        }
+        
+        // --- 3. VALIDAÇÃO E ADAPTAÇÃO (Axioma $\tau$) ---
+        
+        /**
+         * Calcula a métrica de acurácia da submissão.
+         * @param {string} submitted - A sequência digitada pelo usuário.
+         * @param {string} original - A sequência original.
+         * @returns {number} Porcentagem de acertos.
+         */
+        function calculateAccuracy(submitted, original) {
+            let correct = 0;
+            const len = Math.min(submitted.length, original.length);
+            for (let i = 0; i < len; i++) {
+                if (submitted[i] === original[i]) {
+                    correct++;
+                }
+            }
+            return (correct / original.length) * 100;
+        }
+
+        /**
+         * Função principal de adaptação do protocolo.
+         * Adapta o $T_{AP}$ e o $N$ (dígitos) baseado na performance.
+         * @param {boolean} isCorrect - Se a sequência foi totalmente correta.
+         * @param {number} accuracy - Acurácia percentual.
+         */
+        function adaptProtocol(isCorrect, accuracy) {
+            
+            // 1. Cálculo da Média de T_R
+            const avgTR = reactionTimes.length > 0 
+                          ? reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length 
+                          : presentationTime_ms; // Fallback
+
+            // 2. Adaptação do N (Número de Dígitos)
+            if (isCorrect && accuracy === 100) {
+                trialSuccessCount++;
+                numDigits = Math.min(numDigits + 1, 15); // Limite máximo 15 dígitos
+                logAdaptation(`✅ ACERTO TOTAL (N+1). Novo N=${numDigits}.`);
+            } else if (accuracy < 70 && numDigits > 3) {
+                numDigits = Math.max(numDigits - 1, 3);
+                logAdaptation(`❌ ACURÁCIA BAIXA (<70%) (N-1). Novo N=${numDigits}.`);
+            }
+            // Se N já estiver no mínimo, não decrementa.
+
+            // 3. Adaptação do T_AP (Tempo de Apresentação - Pacing $\tau$)
+            
+            const TR_MEDIANA = 1000; // Tempo de Reação Mediano Ideal (pode ser ajustado)
+            const TR_TOLERANCIA = 300; // Tolerância para a Média.
+            const FATOR_ADAPTACAO = 0.95; // Fator de amortecimento da adaptação (95% do valor anterior)
+            
+            let newPresentationTime;
+            
+            if (avgTR > TR_MEDIANA + TR_TOLERANCIA) {
+                 // Reação Lenta: Aumenta a velocidade (diminui T_AP)
+                 newPresentationTime = presentationTime_ms * FATOR_ADAPTACAO; // Reduz em 5%
+                 logAdaptation(`Atenção Lenta ($\overline{T_R}$ alto): Reduzindo $T_{AP}$ para acelerar o *pacing*.`);
+            } else if (avgTR < TR_MEDIANA - TR_TOLERANCIA) {
+                 // Reação Rápida/Precoce: Diminui a velocidade (aumenta T_AP)
+                 newPresentationTime = presentationTime_ms / FATOR_ADAPTACAO; // Aumenta em 5%
+                 logAdaptation(`Atenção Rápida ($\overline{T_R}$ baixo): Aumentando $T_{AP}$ para evitar superficialidade.`);
+            } else {
+                 // Pacing no Limiar: Mantém o T_AP
+                 newPresentationTime = presentationTime_ms;
+                 logAdaptation(`Pacing Ótimo. $T_{AP}$ Mantido.`);
+            }
+
+            // Garante Limites (entre 500ms e 4000ms)
+            presentationTime_ms = Math.max(500, Math.min(4000, newPresentationTime));
+
+            // 4. Limpeza e Reset
+            reactionTimes = []; 
+            updateUI();
+        }
+        
+        // --- 4. FUNÇÕES DE SUPORTE E LISTENERS ---
+
+        /**
+         * Atualiza a interface com as métricas atuais.
+         */
+        function updateUI() {
+            ELEMENTS.currentDigits.textContent = numDigits;
+            ELEMENTS.avgPresentationTime.textContent = presentationTime_ms.toFixed(0);
+            
+            const avgTR = reactionTimes.length > 0 
+                          ? reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length 
+                          : 'N/A';
+            ELEMENTS.avgReactionTime.textContent = typeof avgTR === 'number' ? avgTR.toFixed(0) : 'N/A';
+            ELEMENTS.successCount.textContent = trialSuccessCount;
+        }
+
+        /**
+         * Adiciona uma mensagem ao log de adaptação.
+         */
+        function logAdaptation(message) {
+            const now = new Date().toLocaleTimeString('pt-BR');
+            const logEntry = `<p>[${now}] ${message}</p>`;
+            ELEMENTS.adaptationLog.innerHTML = logEntry + ELEMENTS.adaptationLog.innerHTML;
+        }
+
+        /**
+         * Função de submissão da resposta.
+         */
+        function submitSequence() {
+            if (currentState !== STATE.INPUT) return;
+            
+            const submitted = ELEMENTS.input.value.replace(/\s/g, ''); // Remove espaços
+            const original = currentSequence;
+
+            const accuracy = calculateAccuracy(submitted, original);
+            const isCorrect = (submitted === original);
+
+            if (isCorrect) {
+                ELEMENTS.feedback.innerHTML = `<span style="color: var(--cor-acerto);">✅ SUCESSO. Sequência Correta: **${original}**</span>`;
+            } else {
+                ELEMENTS.feedback.innerHTML = `<span style="color: var(--cor-erro);">❌ FALHA. Sequência Correta: **${original}**</span>`;
+            }
+
+            // Aplica o Axioma de Adaptação $\tau$
+            adaptProtocol(isCorrect, accuracy);
+            
+            // Prepara para o próximo ciclo
+            currentState = STATE.IDLE;
+            ELEMENTS.startButton.disabled = false;
+            ELEMENTS.input.disabled = true;
+            ELEMENTS.submitButton.disabled = true;
+            ELEMENTS.display.textContent = '?';
+            ELEMENTS.display.style.color = 'var(--cor-neon)';
+            
+            // Rola o log para o topo
+            ELEMENTS.adaptationLog.scrollTop = 0;
+        }
+
+        /**
+         * Reseta todas as métricas para o estado inicial.
+         */
+        function resetProtocol() {
+            stopPresentation();
+            numDigits = 3;
+            presentationTime_ms = 2000;
+            currentSequence = '';
+            currentDigitIndex = 0;
+            reactionTimes = [];
+            trialSuccessCount = 0;
+            currentState = STATE.IDLE;
+            
+            ELEMENTS.display.textContent = '?';
+            ELEMENTS.feedback.textContent = '';
+            ELEMENTS.input.value = '';
+            ELEMENTS.input.disabled = true;
+            ELEMENTS.submitButton.disabled = true;
+            ELEMENTS.startButton.disabled = false;
+            ELEMENTS.adaptationLog.innerHTML = `<p class="text-gray-500">Aguardando início do Protocolo...</p>`;
+
+            updateUI();
+        }
+
+        // --- Event Listeners ---
+        ELEMENTS.startButton.addEventListener('click', startPresentation);
+        ELEMENTS.resetButton.addEventListener('click', resetProtocol);
+        ELEMENTS.submitButton.addEventListener('click', submitSequence);
+        
+        // Listener para tecla ENTER submeter a sequência
+        ELEMENTS.input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && currentState === STATE.INPUT) {
+                event.preventDefault(); // Impede o envio de formulário
+                submitSequence();
+            }
+        });
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+             updateUI();
+             lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

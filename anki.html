@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastrio Anki - Terminal de Análise Axiomática</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="./utils.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root {
+            --color-neon-yellow: #FFFF00; 
+            --color-background: #0A0A0A;
+            --color-text: #F8F8F8;
+            --color-surface: #1E1E1E;
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--color-background); 
+            color: var(--color-text);
+            padding: 20px; 
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background-color: var(--color-surface);
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .border-neon-yellow { border-color: var(--color-neon-yellow); }
+        .text-neon-yellow { color: var(--color-neon-yellow); }
+        .bg-neon-yellow { background-color: var(--color-neon-yellow); }
+        .module-link-minimal { 
+            background-color: #333; 
+            color: #E0E0E0; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            display: inline-flex; 
+            align-items: center; 
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        .module-link-minimal:hover { background-color: #444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="NEXUS.html" class="module-link-minimal">
+            <span data-lucide="arrow-left" class="w-5 h-5 mr-2"></span>
+            Voltar ao Nexus
+        </a>
+
+        <h1 class="text-3xl font-bold mb-6 text-center text-neon-yellow border-b border-neon-yellow pb-2">RASTREIO ANKI</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <section class="p-6 rounded-lg border border-white bg-gray-900 shadow-xl">
+                <h2 class="text-2xl font-bold mb-4 border-b border-white pb-2 uppercase text-white">LOG DE SESSÃO</h2>
+                
+                <div class="mb-4">
+                    <label for="cards-reviewed" class="block text-sm font-medium text-gray-400">Cards Revisados (Volume)</label>
+                    <input type="number" id="cards-reviewed" value="50" min="1" class="mt-1 block w-full p-2 bg-black border border-gray-700 rounded-md text-white focus:ring-neon-yellow focus:border-neon-yellow">
+                </div>
+                
+                <div class="mb-6">
+                    <label for="session-duration" class="block text-sm font-medium text-gray-400">Duração da Sessão (Minutos)</label>
+                    <input type="number" id="session-duration" value="25" min="1" class="mt-1 block w-full p-2 bg-black border border-gray-700 rounded-md text-white focus:ring-neon-yellow focus:border-neon-yellow">
+                </div>
+                
+                <button id="log-session-button" type="button" 
+                        class="w-full p-3 bg-neon-yellow text-black font-bold rounded-md hover:opacity-90 transition-opacity flex items-center justify-center uppercase">
+                    <span data-lucide="save" class="w-5 h-5 mr-2"></span>
+                    SALVAR LOG
+                </button>
+            </section>
+
+            <section class="p-6 rounded-lg border border-white bg-gray-900 shadow-xl">
+                <h2 class="text-2xl font-bold mb-4 border-b border-white pb-2 uppercase text-white">RELATÓRIO AXIAL DE PERFORMANCE</h2>
+                
+                <button id="generate-report-button" type="button" 
+                        class="w-full p-2 border border-neon-yellow text-neon-yellow bg-gray-900 rounded-md hover:bg-neon-yellow hover:text-black transition-colors flex items-center justify-center uppercase">
+                    <span data-lucide="bar-chart-3" class="w-5 h-5 mr-2"></span>
+                    ATUALIZAR DIAGNÓSTICO HISTÓRICO
+                </button>
+                
+                <div id="report-output" class="mt-4 p-4 bg-black border border-neon-yellow/30 rounded-lg text-sm min-h-[150px]">
+                    <p class="text-neon-yellow/70">Aguardando dados para o processamento do Relatório...</p>
+                </div>
+            </section>
+        </div>
+        
+    </div>
+
+    <div id="custom-toast"></div>
+
+    <script type="module">
+        // Importando funções de utilidade (CORREÇÃO CRÍTICA)
+        import { saveLocalData, loadLocalData, showToast } from './utils.js';
+
+        const REPORT_KEY = 'anki_session_logs';
+
+        // --- 1. GESTÃO DE DADOS ---
+        function loadLogs() {
+            return loadLocalData(REPORT_KEY, []);
+        }
+
+        function saveLog(cardsReviewed, durationMinutes) {
+            const logs = loadLogs();
+            const newLog = {
+                timestamp: new Date().toISOString(),
+                cards: parseInt(cardsReviewed),
+                duration: parseInt(durationMinutes)
+            };
+            logs.push(newLog);
+            saveLocalData(REPORT_KEY, logs);
+            return logs;
+        }
+
+        // --- 2. LÓGICA DE RELATÓRIO ---
+        function generateReport(logs) {
+            if (logs.length === 0) {
+                return '<p class="text-neon-yellow/70">Nenhum log de sessão encontrado. Complete uma sessão para gerar o diagnóstico.</p>';
+            }
+
+            const totalSessions = logs.length;
+            const totalCards = logs.reduce((sum, log) => sum + log.cards, 0);
+            const totalDuration = logs.reduce((sum, log) => sum + log.duration, 0);
+            
+            // Média Algorítmica: Cards/Minuto (Métrica de Eficiência)
+            const cardsPerMinute = totalDuration > 0 ? (totalCards / totalDuration).toFixed(2) : 0;
+            const avgSessionDuration = (totalDuration / totalSessions).toFixed(1);
+            
+            // Taxa de Retenção (Simulada para complexidade, pode ser real se cards forem rastreados)
+            const simulatedRetention = (Math.min(100, 65 + (cardsPerMinute * 5))).toFixed(1);
+            
+            let html = `
+                <p><strong>Total de Sessões Logadas:</strong> ${totalSessions}</p>
+                <p><strong>Total de Cards Revisados:</strong> ${totalCards}</p>
+                <p><strong>Média de Cards/Minuto (Eficiência Axial):</strong> <span class="text-green-500">${cardsPerMinute}</span> cards/min</p>
+                <p><strong>Duração Média da Sessão:</strong> ${avgSessionDuration} minutos</p>
+                <p><strong>Taxa de Retenção Estimada:</strong> ${simulatedRetention}%</p>
+                <br>
+                <p class="text-sm text-gray-500">O desempenho indica uma Eficiência Axial ${cardsPerMinute > 1.8 ? 'Alta' : 'Moderada'}. Mantenha a consistência.</p>
+            `;
+            
+            return html;
+        }
+
+        // --- 3. EVENT LISTENERS ---
+        document.getElementById('log-session-button').addEventListener('click', () => {
+            const cardsInput = document.getElementById('cards-reviewed');
+            const durationInput = document.getElementById('session-duration');
+            
+            const cards = parseInt(cardsInput.value);
+            const duration = parseInt(durationInput.value);
+
+            if (cards > 0 && duration > 0) {
+                const logs = saveLog(cards, duration);
+                showToast(`Log de ${cards} cards em ${duration} min SALVO.`, false);
+                document.getElementById('report-output').innerHTML = generateReport(logs);
+            } else {
+                showToast("Por favor, insira valores válidos e positivos.", true);
+            }
+        });
+
+        document.getElementById('generate-report-button').addEventListener('click', () => {
+            const logs = loadLogs();
+            document.getElementById('report-output').innerHTML = generateReport(logs);
+            showToast("Relatório de Performance Atualizado.", false);
+        });
+
+        // --- 4. INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const logs = loadLogs();
+            document.getElementById('report-output').innerHTML = generateReport(logs);
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

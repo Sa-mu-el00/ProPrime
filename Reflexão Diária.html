@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algoritmo de Decisão Inteligente Pessoal - Reflexão Diária</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="./utils.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Estilos mantidos para consistência Neon */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #121212; color: #E0E0E0; }
+        .container { max-width: 700px; margin: auto; background-color: #1E1E1E; padding: 30px; border-radius: 8px; box-shadow: 0 0 15px rgba(187, 134, 252, 0.2); }
+        .neon-accent { color: #BB86FC; }
+        .bg-neon { background-color: #BB86FC; }
+        .shadow-neon { box-shadow: 0 0 10px rgba(187, 134, 252, 0.7); }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #BB86FC; cursor: pointer; border-radius: 50%; }
+        input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; background: #BB86FC; cursor: pointer; border-radius: 50%; }
+        .return-button { background-color: #333; color: #E0E0E0; padding: 10px; border-radius: 5px; margin-bottom: 20px; display: inline-flex; align-items: center; text-decoration: none; }
+        .score-display { min-width: 30px; text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="NEXUS.html" class="return-button">
+            <span data-lucide="arrow-left" class="w-5 h-5 mr-2"></span>
+            Voltar ao Nexus
+        </a>
+        
+        <h1 class="text-3xl font-bold mb-6 text-center neon-accent">TERMINAL DE REFLEXÃO DIÁRIA</h1>
+
+        <div id="intro-screen">
+            <p class="text-lg mb-4">Inicie o protocolo de auto-avaliação para determinar a **Categoria Crítica** do seu estado cognitivo. Os dados serão usados para calibrar o Fluxo Diário subsequente.</p>
+            <button id="start-button" class="w-full py-3 bg-neon text-dark font-bold rounded-lg shadow-neon hover:opacity-90 transition-opacity">
+                INICIAR DIAGNÓSTICO
+            </button>
+        </div>
+
+        <div id="question-screen" class="hidden">
+            <h2 id="question-title" class="text-2xl font-semibold mb-4 text-white"></h2>
+            <p id="question-meta" class="text-sm neon-accent mb-6"></p>
+
+            <input type="range" id="score-slider" min="1" max="10" value="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer range-lg">
+            
+            <div class="flex justify-between text-sm mt-2 mb-8">
+                <span>1 (Mínimo)</span>
+                <span id="current-score" class="font-bold score-display">5</span>
+                <span>10 (Máximo)</span>
+            </div>
+
+            <button id="next-button" class="w-full py-3 bg-neon text-dark font-bold rounded-lg shadow-neon hover:opacity-90 transition-opacity">
+                PRÓXIMA PERGUNTA
+            </button>
+        </div>
+
+        <div id="results-screen" class="hidden">
+            <h2 class="text-2xl font-bold mb-4 neon-accent border-b border-gray-700 pb-2">RESULTADO DO DIAGNÓSTICO</h2>
+            <div id="summary-output" class="mb-6 p-4 bg-gray-800 rounded-lg text-sm"></div>
+            <button id="new-assessment-button" class="w-full py-3 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors">
+                REALIZAR NOVA AVALIAÇÃO
+            </button>
+        </div>
+    </div>
+    
+    <div id="custom-toast"></div>
+
+    <script type="module">
+        import { saveLocalData, showToast } from './utils.js';
+
+        let currentQuestionIndex = 0;
+        let answers = []; 
+
+        const QUESTIONS = [
+            { text: "Qual o seu nível de Foco e Atenção Sustentada agora?", category: "Foco", minLabel: "Totalmente Distraído", maxLabel: "Foco Absoluto" },
+            { text: "Qual o seu nível percebido de Fadiga/Cansaço Mental?", category: "Fadiga", minLabel: "Totalmente Descansado", maxLabel: "Exaustão Máxima", reverseScore: true },
+            { text: "Qual o seu nível de Engajamento/Motivação para as tarefas?", category: "Emoção", minLabel: "Nenhum Engajamento", maxLabel: "Motivação Extrema" },
+            { text: "Qual a qualidade percebida do seu sono noturno?", category: "Sono", minLabel: "Péssima Qualidade", maxLabel: "Qualidade Máxima" },
+            { text: "Qual a sua sensação de 'Tédio' ou Monotonia neste momento?", category: "Foco", minLabel: "Nenhum Tédio", maxLabel: "Tédio Máximo", reverseScore: true },
+        ];
+        
+        const introScreen = document.getElementById('intro-screen');
+        const questionScreen = document.getElementById('question-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        const scoreSlider = document.getElementById('score-slider');
+        const currentScoreDisplay = document.getElementById('current-score');
+        
+        scoreSlider.addEventListener('input', () => {
+            currentScoreDisplay.textContent = scoreSlider.value;
+        });
+
+        function showScreen(screen) {
+            introScreen.classList.add('hidden');
+            questionScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+            screen.classList.remove('hidden');
+        }
+
+        function renderQuestion(index) {
+            currentQuestionIndex = index;
+            if (index >= QUESTIONS.length) {
+                processResults();
+                return;
+            }
+
+            const q = QUESTIONS[index];
+            document.getElementById('question-title').textContent = `${index + 1}/${QUESTIONS.length}. ${q.text}`;
+            document.getElementById('question-meta').innerHTML = `Categoria: <strong>${q.category}</strong>. Min: ${q.minLabel}, Max: ${q.maxLabel}`;
+            
+            // Reset slider e display
+            scoreSlider.value = 5;
+            currentScoreDisplay.textContent = 5;
+            showScreen(questionScreen);
+        }
+
+        function collectAnswer() {
+            const q = QUESTIONS[currentQuestionIndex];
+            const score = parseInt(scoreSlider.value);
+            
+            // Armazena a pontuação original e a normalizada (para categorias reversas)
+            const normalizedScore = q.reverseScore ? (11 - score) : score; 
+
+            answers.push({
+                text: q.text,
+                category: q.category,
+                score: normalizedScore,
+                rawScore: score 
+            });
+
+            return true;
+        }
+
+        function processResults() {
+            const scores = {};
+            answers.forEach(a => {
+                if (!scores[a.category]) scores[a.category] = [];
+                scores[a.category].push(a.score);
+            });
+
+            const finalScores = {};
+            let maxAvg = 0;
+            let criticalCategory = 'Normal';
+
+            for (const cat in scores) {
+                const avg = scores[cat].reduce((sum, val) => sum + val, 0) / scores[cat].length;
+                finalScores[cat] = parseFloat(avg.toFixed(2));
+
+                // A critical_category é a que teve a menor pontuação normalizada (pior performance)
+                if (finalScores[cat] < maxAvg || maxAvg === 0) {
+                    maxAvg = finalScores[cat];
+                    criticalCategory = cat;
+                }
+            }
+            
+            // Tratamento especial para 'Fadiga' e 'Tédio', que são métricas que queremos evitar
+            if (criticalCategory === 'Fadiga' && finalScores.Fadiga < 5.0) criticalCategory = 'Fadiga';
+            if (criticalCategory === 'Foco' && finalScores.Foco < 5.0) criticalCategory = 'Foco';
+            if (criticalCategory === 'Emoção' && finalScores.Emoção < 5.0) criticalCategory = 'Emoção';
+            
+            if (maxAvg >= 7.0) criticalCategory = 'Normal';
+
+            const recommendation = generateRecommendation(criticalCategory);
+
+            // --- CORREÇÃO CRÍTICA: SALVAMENTO LOCAL VIA utils.js ---
+            const today = new Date().toISOString().split('T')[0];
+            const logKey = `${today}_${new Date().toLocaleTimeString('pt-BR')}`;
+            
+            const logData = {
+                timestamp: new Date().toISOString(),
+                scores: finalScores,
+                critical_category: criticalCategory,
+                recommendation: recommendation,
+            };
+
+            // Carrega logs existentes e adiciona o novo
+            const dailyLog = loadLocalData('daily_reflection_log', {});
+            dailyLog[logKey] = logData;
+            saveLocalData('daily_reflection_log', dailyLog);
+            // --------------------------------------------------------
+            
+            displayResults(finalScores, criticalCategory, recommendation);
+            showScreen(resultsScreen);
+            showToast(`Reflexão Salva! Categoria Crítica: ${criticalCategory}.`, false);
+        }
+
+        function generateRecommendation(category) {
+            switch (category) {
+                case 'Foco':
+                    return { direct: "Execute o Protocolo de Vigilância (Memória Numérica ou Tédio) por 15 minutos. Use o Pomodoro Rigoroso.", peripheral: "Certifique-se de que o ambiente de estudo está livre de distrações e ative um som binaural para concentração." };
+                case 'Fadiga':
+                    return { direct: "Execute o Protocolo Parassimpático (Descanso.html) imediatamente. Reduza a próxima sessão de estudo em 25%.", peripheral: "Hidrate-se e faça uma pausa de 5 minutos, longe da tela." };
+                case 'Emoção':
+                    return { direct: "Reavalie seus objetivos e reforce o 'Porquê' do seu estudo (Ciclo de Reconexão). Inicie com uma disciplina de baixo esforço.", peripheral: "Mova a meta mais difícil para amanhã para reduzir a ansiedade de performance." };
+                default:
+                    return { direct: "Mantenha o ritmo. Seu estado cognitivo está otimizado. Prossiga com o Fluxo Diário normalmente.", peripheral: "Considere aumentar o tempo de revisão (anki) em 10%." };
+            }
+        }
+
+        function displayResults(scores, criticalCategory, recommendation) {
+            const outputDiv = document.getElementById('summary-output');
+            
+            let html = `<p class="mb-4"><strong>Categoria Crítica:</strong> <span class="neon-accent font-bold text-lg">${criticalCategory.toUpperCase()}</span></p>`;
+            html += `<p class="mb-4"><strong>Pontuações Médias:</strong></p><ul class="list-disc list-inside ml-4">`;
+            for (const cat in scores) {
+                html += `<li>${cat}: ${scores[cat]} / 10</li>`;
+            }
+            html += `</ul><br>`;
+            html += `<p class="text-sm"><strong>Ação Direta Recomendada (Fluxo Diário):</strong> ${recommendation.direct}</p>`;
+            html += `<p class="text-sm"><strong>Ação Periférica:</strong> ${recommendation.peripheral}</p>`;
+            
+            outputDiv.innerHTML = html;
+        }
+
+        document.getElementById('start-button').addEventListener('click', () => {
+            answers = [];
+            renderQuestion(0);
+        });
+
+        document.getElementById('new-assessment-button').addEventListener('click', () => {
+            showScreen(introScreen);
+            currentQuestionIndex = 0;
+            answers = [];
+        });
+        
+        // Renderiza a primeira tela ao carregar.
+        document.addEventListener('DOMContentLoaded', () => {
+            showScreen(introScreen);
+            // Inicializa ícones lucide
+            lucide.createIcons();
+        });
+
+    </script>
+</body>
+</html>

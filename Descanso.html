@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal de Reset Cognitivo: Protocolo Parassimpático</title>
+    <style>
+        /* CSS para uma interface tecnológica e de alto contraste (Dark Mode Técnico) */
+        body {
+            font-family: 'Consolas', 'Courier New', monospace; /* Fonte técnica */
+            background-color: #0A0A1A; /* Navy Profundo */
+            color: #E0E0E0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            text-align: center;
+            flex-direction: column;
+        }
+        .container {
+            width: 90%;
+            max-width: 650px;
+            padding: 30px;
+            background-color: #1A1A2E; /* Navy Ligeiramente Mais Claro */
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.15); /* Sombra Neon Verde Sutil */
+            position: relative;
+            border: 1px solid #00FF0044; /* Borda técnica */
+        }
+        h1 {
+            color: #00FF00; /* Destaque Primário (Verde Limão Neon) */
+            font-size: 2.0em;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        h2 {
+            color: #00FFFF; /* Destaque Secundário (Ciano Elétrico) */
+            font-size: 1.5em;
+            margin-top: 5px;
+            margin-bottom: 25px;
+            font-weight: normal;
+        }
+        .timer-display {
+            font-size: 4.5em;
+            font-weight: bold;
+            color: #E0E0E0;
+            margin: 20px 0;
+            padding: 10px;
+            border: 3px solid #00FF00;
+            border-radius: 8px;
+            display: inline-block;
+            min-width: 220px;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        .breathing-indicator {
+            height: 120px;
+            width: 120px;
+            background-color: #00FFFF; /* Ciano Inicial */
+            border-radius: 50%;
+            margin: 25px auto;
+            opacity: 0.9;
+            /* A transição será definida dinamicamente no JS para acompanhar o tempo do ciclo */
+            transition: transform 0s, background-color 0.5s; 
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+            text-transform: uppercase;
+        }
+        .start-button {
+            background-color: #00FF00; /* Verde Neon */
+            color: #1A1A2E;
+        }
+        .start-button:hover:not(:disabled) {
+            background-color: #33FF33;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+        }
+        .pause-button {
+            background-color: #FF00FF; /* Magenta Neon */
+            color: #1A1A2E;
+        }
+        .pause-button:hover:not(:disabled) {
+            background-color: #FF33FF;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.7);
+        }
+        .button:disabled {
+            background-color: #374151;
+            color: #888888;
+            cursor: not-allowed;
+        }
+        .status-text {
+            margin-top: 15px;
+            font-style: italic;
+            color: #FFD700; /* Dourado para Status */
+        }
+        .instructions {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #0A0A1A;
+            border-left: 5px solid #00FF00;
+            border-radius: 4px;
+            text-align: left;
+            font-size: 0.9em;
+            color: #A0A0A0;
+        }
+        
+        /* Estilos do Modal */
+        .modal-overlay {
+            display: none; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(10, 10, 26, 0.95); 
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-box {
+            background-color: #1A1A2E;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.7);
+            text-align: center;
+            animation: fadeIn 0.3s ease-out;
+            border: 1px solid #00FF00;
+        }
+        .modal-title {
+            color: #00FF00;
+            font-size: 1.6em;
+            margin-bottom: 10px;
+        }
+        .modal-message {
+            color: #E0E0E0;
+            margin-bottom: 20px;
+        }
+        .modal-button {
+            background-color: #00FF00;
+            color: #1A1A2E;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>TERMINAL DE ISOCRONIA V1.1</h1>
+        <h2>Protocolo de Reset Parassimpático</h2>
+
+        <div id="timer-display" class="timer-display">10:00</div>
+        
+        <div id="status-display" class="status-text">PROTOCOLO PRONTO. Aguardando Início.</div>
+
+        <div id="breathing-indicator" class="breathing-indicator"></div>
+        
+        <div class="button-group">
+            <button id="start-button" class="button start-button" onclick="startSession()">
+                Iniciar Sessão de 10 Minutos
+            </button>
+            <button id="pause-button" class="button pause-button" onclick="pauseSession()" disabled>
+                Pausar Isocronia
+            </button>
+        </div>
+
+        <div class="instructions">
+            <p><strong>Meta:</strong> Ativar o Sistema Nervoso Parassimpático, maximizando a coerência cardíaca.</p>
+            <p id="cycle-instruction"><strong>Ciclo:</strong> Inspiração (5s) &rarr; Retenção (3s) &rarr; Expiração (7s) &rarr; Pausa (3s).</p>
+            <p><strong>Foco:</strong> Mantenha a atenção no indicador. A variação da respiração é o principal vetor de reset.</p>
+        </div>
+    </div>
+    
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title">✅ PROTOCOLO [10:00] CONCLUÍDO</div>
+            <div id="modal-message" class="modal-message">RESET COGNITIVO COMPLETO. Retome a atividade com a máxima Proficiência Parassimpática.</div>
+            <button class="modal-button" onclick="hideCustomModal()">
+                Entendido. Fechar Terminal.
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURAÇÃO E VARIÁVEIS DE ESTADO (V.1.1) ---
+        const initialDuration = 60 * 10; // 10 minutos em segundos (600s)
+        const CYCLE_DURATION = 18000; // 18 segundos (5+3+7+3)
+
+        let timeLeft = initialDuration;
+        let isRunning = false;
+        let isPaused = false;
+        let timerInterval;
+        let breathingInterval;
+        let breathingTimeouts = []; // Para gerenciar os timeouts do ciclo
+
+        // Elementos da DOM
+        const timerDisplay = document.getElementById('timer-display');
+        const startButton = document.getElementById('start-button');
+        const pauseButton = document.getElementById('pause-button');
+        const statusDisplay = document.getElementById('status-display');
+        const indicator = document.getElementById('breathing-indicator');
+        const MODAL = document.getElementById('custom-modal');
+        const MODAL_MESSAGE = document.getElementById('modal-message');
+
+        // --- 2. PROTOCOLOS DE RESPIRAÇÃO (ISOCRONIA REVISADA: 5-3-7-3) ---
+
+        /**
+         * Executa um único ciclo de respiração (5-3-7-3) usando transições CSS.
+         * A transição de transform é definida no JS para corresponder à duração da fase.
+         */
+        function runBreathingCycle() {
+            if (!isRunning || isPaused) return;
+
+            // Limpa timeouts anteriores (se houver) e garante que apenas um ciclo é executado por chamada
+            breathingTimeouts.forEach(clearTimeout);
+            breathingTimeouts = [];
+            
+            // 1. Inspiração (5s) - Duração da Transição: 5s
+            breathingTimeouts.push(setTimeout(() => {
+                indicator.style.transition = 'transform 5s ease-in-out, background-color 0.5s';
+                indicator.style.transform = 'scale(1.6)';
+                indicator.style.backgroundColor = '#00FF00'; // Verde Limão
+                statusDisplay.textContent = "INSPIRAÇÃO (5s): Coleta de Oxigênio";
+            }, 50));
+
+            // 2. Retenção (3s) - Não há movimento, transição de 0s
+            breathingTimeouts.push(setTimeout(() => {
+                indicator.style.transition = 'transform 0s, background-color 0.5s';
+                statusDisplay.textContent = "RETENÇÃO (3s): Saturação de O2 Máxima";
+            }, 5050)); 
+
+            // 3. Expiração (7s) - Duração da Transição: 7s
+            breathingTimeouts.push(setTimeout(() => {
+                indicator.style.transition = 'transform 7s ease-in-out, background-color 0.5s';
+                indicator.style.transform = 'scale(0.7)';
+                indicator.style.backgroundColor = '#00FFFF'; // Ciano Elétrico
+                statusDisplay.textContent = "EXPIRAÇÃO (7s): Descarte de CO2 Profundo";
+            }, 8050));
+
+            // 4. Pausa (3s) - Não há movimento, transição de 0s
+            breathingTimeouts.push(setTimeout(() => {
+                indicator.style.transition = 'transform 0s, background-color 0.5s';
+                statusDisplay.textContent = "PAUSA (3s): Calibração de Frequência Cardíaca";
+            }, 15050));
+        }
+
+        /**
+         * Atualiza o display do timer principal (MM:SS).
+         */
+        function updateTimerDisplay() {
+            const minutes = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+            const seconds = String(timeLeft % 60).padStart(2, '0');
+            timerDisplay.textContent = `${minutes}:${seconds}`;
+        }
+        
+        // --- 3. FUNÇÕES DO MODAL ---
+        function showCustomModal() {
+            MODAL.style.display = 'flex';
+        }
+        
+        function hideCustomModal() {
+            MODAL.style.display = 'none';
+        }
+
+        // --- 4. CONTROLE DA SESSÃO (START/PAUSE) ---
+
+        /**
+         * Pausa o timer e o ciclo de respiração.
+         */
+        function pauseSession() {
+            if (!isRunning || isPaused) return;
+
+            isPaused = true;
+            clearInterval(timerInterval);
+            clearInterval(breathingInterval);
+            
+            // Cancela todos os timeouts de animação pendentes
+            breathingTimeouts.forEach(clearTimeout);
+            
+            startButton.textContent = "RETOMAR ISOCRONIA";
+            startButton.disabled = false;
+            pauseButton.disabled = true;
+            statusDisplay.textContent = "PAUSADO. Mantenha a Expiração Lenta e Profunda.";
+            indicator.style.transition = 'transform 0.5s, background-color 0.5s';
+            indicator.style.transform = 'scale(1)'; // Volta ao tamanho neutro
+            indicator.style.backgroundColor = '#FF00FF'; // Cor de Pausa/Alerta
+        }
+
+        /**
+         * Inicia ou retoma o timer principal e o ciclo de respiração.
+         */
+        function startSession() {
+            // Se estiver rodando e não pausado, ignora
+            if (isRunning && !isPaused) return;
+            
+            const isResuming = isRunning && isPaused;
+
+            isRunning = true;
+            isPaused = false;
+            
+            // Se for um novo início, reseta o tempo
+            if (!isResuming) {
+                timeLeft = initialDuration;
+                updateTimerDisplay(); // Atualiza imediatamente para 10:00
+            }
+
+            startButton.disabled = true;
+            pauseButton.disabled = false;
+            startButton.textContent = isResuming ? "SESSÃO ATIVA: Foco Retomado" : "SESSÃO ATIVA: Não Interrompa a Isocronia";
+            
+            // Inicia o ciclo respiratório (executa a primeira vez e configura o loop)
+            runBreathingCycle(); 
+            breathingInterval = setInterval(runBreathingCycle, CYCLE_DURATION);
+
+            // Inicia o timer principal
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    // Limpeza de todas as variáveis e intervalos
+                    clearInterval(timerInterval);
+                    clearInterval(breathingInterval); 
+                    breathingTimeouts.forEach(clearTimeout);
+                    isRunning = false;
+                    isPaused = false;
+                    
+                    // Reset do estado da interface
+                    startButton.disabled = false;
+                    pauseButton.disabled = true;
+                    startButton.textContent = "INICIAR SESSÃO DE 10 MINUTOS";
+                    statusDisplay.textContent = "PROTOCOLO CONCLUÍDO. Redefinição Cognitiva Máxima.";
+                    indicator.style.transition = 'transform 0.5s, background-color 0.5s';
+                    indicator.style.transform = 'scale(1)'; 
+                    indicator.style.backgroundColor = '#00FF00'; // Cor de sucesso
+
+                    // Chama o modal customizado
+                    setTimeout(showCustomModal, 50); 
+                }
+            }, 1000); 
+        }
+
+        // Inicializa o display ao carregar
+        updateTimerDisplay();
+        
+        // Inicializa o botão de pausa como desabilitado
+        pauseButton.disabled = true;
+        
+    </script>
+
+</body>
+</html>
